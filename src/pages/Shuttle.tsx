@@ -19,7 +19,7 @@ import ShuttleTicket from "@/components/shuttle/ShuttleTicket";
 import { SeatLayout, SeatInfo } from "@/components/shuttle/SeatLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-type Step = "routes" | "date" | "service" | "schedule" | "pickup" | "seats" | "guest_info" | "payment" | "confirmation";
+type Step = "routes" | "date" | "service" | "vehicle" | "schedule" | "pickup" | "seats" | "guest_info" | "payment" | "confirmation";
 
 export default function Shuttle() {
   const navigate = useNavigate();
@@ -29,6 +29,7 @@ export default function Shuttle() {
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedServiceTypeId, setSelectedServiceTypeId] = useState<string | null>(null);
+  const [selectedVehicleType, setSelectedVehicleType] = useState<string | null>(null);
   const [selectedScheduleId, setSelectedScheduleId] = useState<string | null>(null);
   const [selectedScheduleFare, setSelectedScheduleFare] = useState(0);
   const [selectedScheduleSeats, setSelectedScheduleSeats] = useState(0);
@@ -123,11 +124,30 @@ export default function Shuttle() {
   // Get unique dates for the selected route
   const availableDates = selectedRoute?.schedules.map((s: any) => new Date(s.departure_time)) ?? [];
 
-  // Get schedules for selected route + date + service type
+  // Get schedules for selected route + date + service type + vehicle type
   const filteredSchedules = selectedRoute?.schedules.filter((s: any) =>
     selectedDate && isSameDay(new Date(s.departure_time), selectedDate) &&
-    (!selectedServiceTypeId || s.service_type_id === selectedServiceTypeId)
+    (!selectedServiceTypeId || s.service_type_id === selectedServiceTypeId) &&
+    (!selectedVehicleType || s.vehicle_type === selectedVehicleType)
   ) ?? [];
+
+  // Get unique vehicle types for the selected route + date + service
+  const availableVehicles = Array.from(new Set(
+    selectedRoute?.schedules
+      .filter((s: any) => 
+        selectedDate && isSameDay(new Date(s.departure_time), selectedDate) &&
+        (!selectedServiceTypeId || s.service_type_id === selectedServiceTypeId) &&
+        s.available_seats > 0 // Only show vehicles with available seats
+      )
+      .map((s: any) => s.vehicle_type)
+      .filter(Boolean)
+  )) as string[];
+
+  const vehicleDetails = {
+    "SUV": { name: "SUV Premium", capacity: 7, facilities: ["AC", "Audio", "Charger"], icon: <Bus className="w-10 h-10" /> },
+    "MiniCar": { name: "Mini Car", capacity: 4, facilities: ["AC", "Compact"], icon: <Bus className="w-10 h-10" /> },
+    "Hiace": { name: "Hiace Executive", capacity: 10, facilities: ["AC", "Reclining Seat", "TV", "Charger"], icon: <Bus className="w-10 h-10" /> },
+  };
 
   const handleSelectRoute = (routeId: string) => {
     setSelectedRouteId(routeId);
@@ -143,6 +163,11 @@ export default function Shuttle() {
 
   const handleSelectService = (serviceId: string) => {
     setSelectedServiceTypeId(serviceId);
+    setStep("vehicle");
+  };
+
+  const handleSelectVehicle = (vehicleType: string) => {
+    setSelectedVehicleType(vehicleType);
     setStep("schedule");
   };
 
@@ -305,6 +330,7 @@ export default function Shuttle() {
     setSelectedRouteId(null);
     setSelectedDate(undefined);
     setSelectedServiceTypeId(null);
+    setSelectedVehicleType(null);
     setSelectedScheduleId(null);
     setSelectedPickupPoint(null);
     setSelectedRayonId(null);
@@ -320,7 +346,8 @@ export default function Shuttle() {
   const goBack = () => {
     if (step === "date") setStep("routes");
     else if (step === "service") setStep("date");
-    else if (step === "schedule") setStep("service");
+    else if (step === "vehicle") setStep("service");
+    else if (step === "schedule") setStep("vehicle");
     else if (step === "pickup") setStep("schedule");
     else if (step === "seats") setStep(rayons && (rayons as any[]).length > 0 ? "pickup" : "schedule");
     else if (step === "guest_info") setStep("seats");
@@ -429,6 +456,64 @@ export default function Shuttle() {
                         </div>
                       </button>
                     ))}
+                  </CardContent>
+                </Card>
+                <Button variant="outline" className="w-full" onClick={goBack}>Kembali</Button>
+              </div>
+            )}
+
+            {/* STEP NEW: VEHICLE TYPE */}
+            {step === "vehicle" && (
+              <div className="space-y-3">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Pilih Jenis Kendaraan</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedRoute?.name} • {selectedDate && format(selectedDate, "dd MMM yyyy")} • {serviceTypes?.find(st => st.id === selectedServiceTypeId)?.name}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {availableVehicles.length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">Tidak ada kendaraan tersedia untuk kriteria ini</p>
+                    )}
+                    {availableVehicles.map((vt) => {
+                      const details = (vehicleDetails as any)[vt] || { name: vt, capacity: "?", facilities: [], icon: <Bus className="w-10 h-10" /> };
+                      return (
+                        <button 
+                          key={vt} 
+                          onClick={() => handleSelectVehicle(vt)}
+                          className="w-full text-left p-4 rounded-xl border-2 border-border hover:border-primary transition-all group relative overflow-hidden"
+                        >
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-primary/5 rounded-lg text-primary">
+                                {details.icon}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-lg text-primary">{details.name}</h3>
+                                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                  <Users className="w-3 h-3" />
+                                  <span>Kapasitas: {details.capacity} Kursi</span>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge variant="outline" className="bg-primary/5">Pilih</Badge>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-1.5 mt-2">
+                            {details.facilities.map((f: string) => (
+                              <span key={f} className="text-[10px] px-2 py-0.5 bg-accent rounded-full font-medium">
+                                {f}
+                              </span>
+                            ))}
+                          </div>
+
+                          <div className="absolute right-0 bottom-0 opacity-5 group-hover:opacity-10 transition-opacity">
+                            <Bus className="w-20 h-20 -mr-6 -mb-6" />
+                          </div>
+                        </button>
+                      );
+                    })}
                   </CardContent>
                 </Card>
                 <Button variant="outline" className="w-full" onClick={goBack}>Kembali</Button>
