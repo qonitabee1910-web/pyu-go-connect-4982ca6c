@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MapView } from "@/components/map/MapView";
 import { useRideStore } from "@/stores/rideStore";
 import { ServiceSelector } from "@/components/ride/ServiceSelector";
+import { LocationSearchInput } from "@/components/ride/LocationSearchInput";
 import { useAuth } from "@/hooks/useAuth";
 import { useDriverTracking } from "@/hooks/useDriverTracking";
 import { useNavigate } from "react-router-dom";
@@ -150,20 +151,34 @@ export default function Ride() {
 
       {/* Top bar overlay */}
       <div className="absolute top-4 left-4 right-4 z-10">
-        <div className="bg-card/95 backdrop-blur rounded-2xl p-4 shadow-lg space-y-3">
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-primary shrink-0" />
-            <p className="text-xs text-foreground truncate flex-1">
-              {pickupAddress || "Tap map to set pick-up"}
-            </p>
-          </div>
+        <div className="bg-card/95 backdrop-blur rounded-2xl p-4 shadow-lg space-y-1">
+          <LocationSearchInput
+            placeholder="Cari lokasi jemput..."
+            value={pickupAddress}
+            dotColor="bg-primary"
+            onSelect={(lat, lng, address) => {
+              setPickup({ lat, lng }, address);
+              setSelectingMode("dropoff");
+            }}
+            onClear={() => {
+              setPickup(null);
+              setSelectingMode("pickup");
+              if (rideStatus !== "idle") resetRide();
+            }}
+          />
           <div className="ml-1.5 border-l-2 border-dashed border-muted-foreground/30 h-3" />
-          <div className="flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-destructive shrink-0" />
-            <p className="text-xs text-foreground truncate flex-1">
-              {dropoffAddress || "Then tap for drop-off"}
-            </p>
-          </div>
+          <LocationSearchInput
+            placeholder="Cari lokasi tujuan..."
+            value={dropoffAddress}
+            dotColor="bg-destructive"
+            onSelect={(lat, lng, address) => {
+              setDropoff({ lat, lng }, address);
+            }}
+            onClear={() => {
+              setDropoff(null);
+              if (rideStatus !== "idle") resetRide();
+            }}
+          />
         </div>
       </div>
 
