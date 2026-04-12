@@ -1,163 +1,83 @@
 
 
-# Driver Module — Integrated with PYU GO Web App
+# Driver Module — Review & Refinement
 
-## Overview
-Build a complete Driver module within the existing web app (not the separate Flutter app). This gives drivers a dedicated portal to manage their status, receive ride requests, navigate to passengers, track earnings, and view ride history — all integrated with the existing ride, wallet, dispatch, and admin systems.
+## Issues Found
 
-## Architecture
+### 1. Bottom Navigation Overflow (7 items on 390px)
+The `DriverLayout` has 7 nav items (Dashboard, Ride Aktif, Shuttle, Pendapatan, Dompet, Profil, Riwayat) crammed into a single row. On a 390px viewport, each item gets ~55px — text will truncate and icons will overlap.
 
-```text
-┌──────────────────────────────────────────────┐
-│                  PYU GO Web App               │
-├──────────┬───────────┬───────────┬────────────┤
-│  Rider   │  Shuttle  │  Hotel    │  DRIVER    │
-│  Module  │  Module   │  Module   │  MODULE    │
-├──────────┴───────────┴───────────┴────────────┤
-│  Shared: Auth, Wallet, MapView, Supabase      │
-└──────────────────────────────────────────────────┘
+**Fix**: Reduce to 5 primary nav items. Merge "Pendapatan" into "Dompet" (earnings withdrawal already lives there). Move "Riwayat" into a sub-section of Dashboard or Earnings. Keep: Dashboard, Ride Aktif, Shuttle, Dompet, Profil.
 
-Driver Flow:
-  Login → /driver → Dashboard (toggle online/offline)
-                   → Incoming ride (realtime) → Accept/Reject
-                   → Active ride (navigate, pickup, complete)
-                   → Earnings & History
-```
+### 2. Vehicle Query Returns Single Object, Not Array
+`DriverDashboard` line 162-167: `driver.vehicles` is fetched via `select("*, vehicles(*)")` which returns a single object (not array) when using a foreign key relationship. The code wraps it in `[(driver.vehicles as any)]` as a workaround, but this breaks if there are multiple vehicles.
 
-## Database Changes (Migration)
+**Fix**: Query vehicles separately with `.from("vehicles").select("*").eq("driver_id", driver.id)` to get a proper array.
 
-1. **Link `drivers.user_id` properly** — ensure drivers can authenticate with existing auth and map to the `drivers` table
-2. **Add `driver_earnings` table** — track per-ride earnings with commission deductions
-3. **Add RLS policies** so drivers can only update their own record (status, location) and view their own rides/earnings
-4. **Enable realtime** on `rides` table for driver-side listening
+### 3. `DriverHistory` — Redundant Driver Query
+Line 14-18: Fetches `drivers` table by `id = driverId` just to get the `id` back — completely unnecessary since `driverId` is already the driver's ID.
 
-```sql
--- driver_earnings table
-CREATE TABLE public.driver_earnings (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  driver_id uuid NOT NULL REFERENCES public.drivers(id) ON DELETE CASCADE,
-  ride_id uuid NOT NULL REFERENCES public.rides(id),
-  gross_fare numeric NOT NULL DEFAULT 0,
-  commission_rate numeric NOT NULL DEFAULT 0.2,
-  commission_amount numeric NOT NULL DEFAULT 0,
-  net_earning numeric NOT NULL DEFAULT 0,
-  status text NOT NULL DEFAULT 'pending', -- pending, paid, withdrawn
-  created_at timestamptz DEFAULT now()
-);
+**Fix**: Remove the redundant query, use `driverId` directly.
 
--- RLS: drivers read/update own record
-CREATE POLICY "Drivers can view own profile"
-  ON public.drivers FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Drivers can update own status/location"
-  ON public.drivers FOR UPDATE USING (auth.uid() = user_id);
+### 4. Missing Error Handling in `useDriverLocation`
+The geolocation update silently fails if the Supabase `update` call errors out. No user feedback.
 
--- RLS: driver_earnings
-CREATE POLICY "Drivers can view own earnings"
-  ON public.driver_earnings FOR SELECT USING (
-    driver_id IN (SELECT id FROM drivers WHERE user_id = auth.uid())
-  );
+**Fix**: Add error logging and optional toast for persistent failures.
 
--- RLS: drivers can view rides assigned to them
-CREATE POLICY "Drivers can view assigned rides"
-  ON public.rides FOR SELECT USING (
-    driver_id IN (SELECT id FROM drivers WHERE user_id = auth.uid())
-  );
-CREATE POLICY "Drivers can update assigned rides"
-  ON public.rides FOR UPDATE USING (
-    driver_id IN (SELECT id FROM drivers WHERE user_id = auth.uid())
-  );
+### 5. Duplicate Wallet Icon in Nav
+Both "Pendapatan" and "Dompet" use the same `Wallet` icon — confusing for users.
 
--- Enable realtime for rides (driver listens for new assignments)
-ALTER PUBLICATION supabase_realtime ADD TABLE public.rides;
-```
+**Fix**: Use `BadgeDollarSign` or `Coins` for Pendapatan to differentiate (if kept separate).
 
-## New Pages & Components
+### 6. `complete-ride` Edge Function Missing Auth Verification
+The function checks for `Authorization` header existence but never verifies the JWT or checks that the caller is the driver assigned to the ride. Anyone with a valid token could complete any ride.
 
-### 1. Driver Dashboard — `src/pages/driver/DriverDashboard.tsx`
-- **Status toggle** (online/offline) — updates `drivers.status` and starts GPS tracking
-- **Live map** showing driver's current position (reuses `MapView`)
-- **Stats cards**: today's rides, today's earnings, rating
-- **Incoming ride notification** (realtime subscription on `rides` where `driver_id = me` and `status = accepted`)
+**Fix**: Verify the JWT, get the user, confirm the user matches the ride's driver via `drivers.user_id`.
 
-### 2. Active Ride View — `src/pages/driver/DriverActiveRide.tsx`
-- Shows pickup/dropoff on map with route polyline
-- Rider info (name, phone)
-- Action buttons: "Arrived at Pickup" → "Start Ride" → "Complete Ride"
-- Updates `rides.status` through the flow: `accepted → in_progress → completed`
-- On complete: creates `driver_earnings` record, marks driver as `available`
+### 7. Profile Insert Race Condition in `signUp`
+The `handle_new_user` trigger already inserts into `profiles` on auth signup. The `signUp` function also manually inserts — causing a duplicate key error.
 
-### 3. Earnings Page — `src/pages/driver/DriverEarnings.tsx`
-- Summary: total earnings (daily/weekly/monthly)
-- List of ride earnings with commission breakdown
-- Withdraw to wallet button (transfers net earning to driver's wallet)
+**Fix**: Remove the manual `profiles.insert` from `signUp`, let the trigger handle it. Or use `.upsert()`.
 
-### 4. Ride History — `src/pages/driver/DriverHistory.tsx`
-- Paginated list of completed rides
-- Each entry: route, fare, earning, date, rider rating
+### 8. Driver Registration Inserts Without RLS Permission
+During signup, the newly created user tries to insert into `drivers` table. But the `drivers` table has no INSERT policy for authenticated users (only admin ALL policy). The insert will fail due to RLS.
 
-### 5. Driver Layout — `src/pages/driver/DriverLayout.tsx`
-- Separate layout (like AdminLayout) with bottom nav: Dashboard, Active Ride, Earnings, History, Profile
-- Green-themed header to distinguish from rider app
+**Fix**: Add an RLS INSERT policy for `drivers`: `WITH CHECK (auth.uid() = user_id)`. Same issue with `user_roles` — no INSERT for non-admin users.
 
-## New Stores & Hooks
+### 9. `useIncomingRide` Listens for `UPDATE` but Dispatch Sets `driver_id` on Insert/Update
+The realtime subscription filters `driver_id=eq.${driverId}`, but the initial dispatch might set `driver_id` via UPDATE (from null to the driver's ID). The filter `driver_id=eq.${driverId}` only matches AFTER the update, so it should work — but the status check for `"accepted"` may not match if dispatch sets status differently.
 
-### `src/stores/driverStore.ts`
-- `isOnline`, `currentRideId`, `driverProfile`, location tracking state
+**Fix**: Verify the dispatch-driver function sets status to `"accepted"` when assigning. Review and align status values.
 
-### `src/hooks/useDriverLocation.ts`
-- Uses browser Geolocation API to track position
-- Pushes updates to `drivers.current_lat/current_lng` every 10 seconds when online
+### 10. No Loading State for `DriverDashboard` Initial Load
+When `driver` is null during loading, it shows "Akun driver tidak ditemukan" instead of a loading spinner, creating a flash of error state.
 
-### `src/hooks/useIncomingRide.ts`
-- Realtime subscription on `rides` table filtered by driver_id
-- Triggers notification when a new ride is assigned
+**Fix**: Check `isLoading` from the query before showing the "not found" message.
 
-## Edge Function Updates
+## Implementation Plan
 
-### Update `dispatch-driver/index.ts`
-- After assigning driver, the ride status change triggers realtime → driver app picks it up automatically (no change needed, already works)
+### Step 1: Database Migration
+- Add INSERT policy on `drivers` for `auth.uid() = user_id`
+- Add INSERT policy on `user_roles` for authenticated users (for self-registration)
 
-### New: `complete-ride/index.ts`
-- Validates ride completion
-- Calculates commission from `app_settings` (ride_fares → commission rate)
-- Creates `driver_earnings` record
-- Marks driver as `available`
-- Optionally processes wallet payment
+### Step 2: Fix `complete-ride` Edge Function Security
+- Verify JWT, extract user ID, confirm driver ownership of the ride
 
-## Routing Updates (`App.tsx`)
+### Step 3: Fix `signUp` Profile Duplicate
+- Remove manual `profiles.insert` (trigger handles it), or switch to upsert
 
-```text
-/driver              → DriverLayout
-  /driver             → DriverDashboard (index)
-  /driver/ride        → DriverActiveRide
-  /driver/earnings    → DriverEarnings
-  /driver/history     → DriverHistory
-```
+### Step 4: Refactor `DriverLayout` Navigation
+- Reduce to 5 items: Dashboard, Ride, Shuttle, Dompet, Profil
+- Merge earnings summary into DriverWallet page
+- Add history as a tab/section within DriverWallet or Dashboard
 
-## Integration Points
+### Step 5: Fix `DriverDashboard`
+- Add `isLoading` check before showing "not found"
+- Fix vehicle query to return proper array
 
-| Feature | Integration |
-|---------|-------------|
-| **Ride dispatch** | Existing `dispatch-driver` assigns rides → driver sees via realtime |
-| **Ride status** | Driver updates status → rider's `Ride.tsx` receives via existing realtime subscription |
-| **Wallet** | Driver earnings can be transferred to their wallet (existing `process_wallet_transaction`) |
-| **Admin** | Existing `AdminDrivers` page already lists drivers; earnings data visible there too |
-| **MapView** | Reuses existing `MapView` component with route polyline |
-| **Auth** | Uses existing auth system; driver role checked via `drivers.user_id` match |
-| **Settings** | Commission rate from `app_settings` ride_fares config |
+### Step 6: Fix `DriverHistory`
+- Remove redundant driver query
 
-## Profile Page Update
-- Add "Driver Mode" button on Profile page if user has a linked driver record
-- Navigates to `/driver` dashboard
-
-## Implementation Order
-1. Database migration (driver_earnings table, RLS policies, realtime)
-2. Create `driverStore.ts` and hooks (`useDriverLocation`, `useIncomingRide`)
-3. Create `DriverLayout` with routing
-4. Build `DriverDashboard` (status toggle, map, stats)
-5. Build `DriverActiveRide` (ride flow with map)
-6. Create `complete-ride` edge function
-7. Build `DriverEarnings` and `DriverHistory` pages
-8. Update Profile page with "Driver Mode" link
-9. Update `App.tsx` routes
+### Step 7: Fix `useDriverLocation` Error Handling
+- Add error logging for failed Supabase updates
 
