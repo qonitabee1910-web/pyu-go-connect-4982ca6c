@@ -10,14 +10,28 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-// Pricing config (Rp) per service type
-const PRICING: Record<string, { base: number; perKm: number; minFare: number }> = {
-  bike: { base: 5000, perKm: 1800, minFare: 7000 },
-  bike_women: { base: 5500, perKm: 2000, minFare: 8000 },
-  car: { base: 7000, perKm: 2500, minFare: 10000 },
+// Fallback pricing if DB fetch fails
+const FALLBACK_PRICING: Record<string, { base_fare: number; per_km: number; min_fare: number; surge_multiplier: number }> = {
+  bike: { base_fare: 5000, per_km: 2500, min_fare: 8000, surge_multiplier: 1.0 },
+  bike_women: { base_fare: 5000, per_km: 2500, min_fare: 8000, surge_multiplier: 1.0 },
+  car: { base_fare: 10000, per_km: 4000, min_fare: 15000, surge_multiplier: 1.0 },
 };
 
-const SURGE_MULTIPLIER_THRESHOLD = 5;
+const SURGE_ACTIVE_RIDES_THRESHOLD = 5;
+
+async function getFareConfig(): Promise<Record<string, { base_fare: number; per_km: number; min_fare: number; surge_multiplier: number }>> {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "ride_fares")
+      .maybeSingle();
+    if (data?.value) return data.value as any;
+  } catch (_) {
+    // fall through
+  }
+  return FALLBACK_PRICING;
+}
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -43,19 +57,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    const sType = service_type && PRICING[service_type] ? service_type : "car";
-    const pricing = PRICING[sType];
+    const fareConfig = await getFareConfig();
+    const sType = service_type && fareConfig[service_type] ? service_type : "car";
+    const pricing = fareConfig[sType];
     const distance_km = haversineKm(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng);
 
-    // Check surge
+    // Check surge based on active rides
     const { count } = await supabase
       .from("rides")
       .select("*", { count: "exact", head: true })
       .in("status", ["pending", "accepted", "in_progress"]);
 
-    const surgeMultiplier = (count ?? 0) >= SURGE_MULTIPLIER_THRESHOLD ? 1.5 : 1.0;
-    const rawFare = pricing.base + (distance_km * pricing.perKm);
-    const fare = Math.max(pricing.minFare, Math.round(rawFare * surgeMultiplier / 500) * 500);
+    const surgeFromDb = pricing.surge_multiplier || 1.0;
+    const surgeDemand = (count ?? 0) >= SURGE_ACTIVE_RIDES_THRESHOLD ? 1.5 : 1.0;
+    const surgeMultiplier = Math.max(surgeFromDb, surgeDemand);
+
+    const rawFare = pricing.base_fare + (distance_km * pricing.per_km);
+    const fare = Math.max(pricing.min_fare, Math.round(rawFare * surgeMultiplier / 500) * 500);
 
     return new Response(JSON.stringify({
       distance_km: Math.round(distance_km * 100) / 100,
