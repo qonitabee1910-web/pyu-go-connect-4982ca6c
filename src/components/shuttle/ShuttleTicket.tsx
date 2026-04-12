@@ -15,6 +15,7 @@ interface ShuttleTicketProps {
   guestPhone: string;
   totalFare: number;
   paymentStatus: string;
+  pickupPointName?: string;
 }
 
 export default function ShuttleTicket({
@@ -28,6 +29,7 @@ export default function ShuttleTicket({
   guestPhone,
   totalFare,
   paymentStatus,
+  pickupPointName,
 }: ShuttleTicketProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -46,7 +48,6 @@ export default function ShuttleTicket({
         ref={ticketRef}
         className="bg-white text-black rounded-2xl overflow-hidden shadow-lg mx-auto max-w-sm"
       >
-        {/* Header */}
         <div
           className="px-6 py-4 text-center"
           style={{ background: "linear-gradient(135deg, #22c55e, #06b6d4)" }}
@@ -55,24 +56,21 @@ export default function ShuttleTicket({
           <p className="text-white/80 text-xs">Shuttle E-Ticket</p>
         </div>
 
-        {/* QR */}
         <div className="flex justify-center py-5">
           <QRCodeSVG value={bookingRef} size={140} level="H" />
         </div>
 
-        {/* Ref */}
         <p className="text-center font-mono font-bold text-lg tracking-widest text-emerald-600">
           {bookingRef}
         </p>
 
-        {/* Dashed divider */}
         <div className="border-t-2 border-dashed border-gray-200 mx-6 my-4" />
 
-        {/* Details */}
         <div className="px-6 pb-5 space-y-2 text-sm">
           <Row label="Route" value={routeName} />
           <Row label="From" value={origin} />
           <Row label="To" value={destination} />
+          {pickupPointName && <Row label="Pickup" value={pickupPointName} />}
           <Row label="Departure" value={departure} />
           <Row label="Seats" value={String(seatCount)} />
           <Row label="Passenger" value={guestName} />

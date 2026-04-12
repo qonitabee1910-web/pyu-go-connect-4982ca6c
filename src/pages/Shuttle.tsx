@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bus, Clock, MapPin, Users, ArrowRight, Check, Loader2, Banknote, CreditCard } from "lucide-react";
+import { Bus, Clock, MapPin, Users, ArrowRight, Loader2, Banknote, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format } from "date-fns";
 import ShuttleTicket from "@/components/shuttle/ShuttleTicket";
 
-type Step = "routes" | "seats" | "guest_info" | "payment" | "confirmation";
+type Step = "routes" | "pickup" | "seats" | "guest_info" | "payment" | "confirmation";
 
 export default function Shuttle() {
   const { user } = useAuth();
@@ -21,6 +21,8 @@ export default function Shuttle() {
   const [selectedScheduleFare, setSelectedScheduleFare] = useState(0);
   const [selectedScheduleSeats, setSelectedScheduleSeats] = useState(0);
   const [selectedScheduleDeparture, setSelectedScheduleDeparture] = useState("");
+  const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
+  const [selectedRayonId, setSelectedRayonId] = useState<string | null>(null);
   const [seatCount, setSeatCount] = useState(1);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
@@ -45,6 +47,19 @@ export default function Shuttle() {
     },
   });
 
+  const { data: rayons } = useQuery({
+    queryKey: ["shuttle-rayons"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("shuttle_rayons").select("*").eq("active", true).order("name");
+      if (error) throw error;
+      const { data: points } = await supabase.from("shuttle_pickup_points").select("*").eq("active", true).order("stop_order");
+      return data.map((r) => ({
+        ...r,
+        pickup_points: (points ?? []).filter((p) => p.rayon_id === r.id),
+      }));
+    },
+  });
+
   const selectedRoute = routes?.find((r) => r.id === selectedRouteId);
 
   const handleSelectSchedule = (routeId: string, schedule: any) => {
@@ -53,6 +68,18 @@ export default function Shuttle() {
     setSelectedScheduleFare(routes?.find((r) => r.id === routeId)?.base_fare ?? 0);
     setSelectedScheduleSeats(schedule.available_seats);
     setSelectedScheduleDeparture(schedule.departure_time);
+    // If rayons exist, go to pickup step; otherwise skip to seats
+    if (rayons && rayons.length > 0) {
+      setStep("pickup");
+    } else {
+      setStep("seats");
+    }
+  };
+
+  const handleSelectPickupPoint = (rayon: any, point: any) => {
+    setSelectedRayonId(rayon.id);
+    setSelectedPickupPoint(point);
+    setSelectedScheduleFare(Number(point.fare));
     setStep("seats");
   };
 
@@ -66,21 +93,29 @@ export default function Shuttle() {
     setStep("payment");
   };
 
+  const totalFare = selectedScheduleFare * seatCount;
+
+  const createBooking = async (pMethod: string, pStatus: string) => {
+    const { data, error } = await supabase.from("shuttle_bookings").insert({
+      schedule_id: selectedScheduleId!,
+      seat_count: seatCount,
+      total_fare: totalFare,
+      guest_name: guestName,
+      guest_phone: guestPhone,
+      user_id: user?.id ?? null,
+      payment_method: pMethod,
+      payment_status: pStatus,
+      rayon_id: selectedRayonId,
+      pickup_point_id: selectedPickupPoint?.id ?? null,
+    } as any).select("booking_ref, id").single();
+    if (error) throw error;
+    return data;
+  };
+
   const handlePayCash = async () => {
     setBooking(true);
     try {
-      const totalFare = selectedScheduleFare * seatCount;
-      const { data, error } = await supabase.from("shuttle_bookings").insert({
-        schedule_id: selectedScheduleId!,
-        seat_count: seatCount,
-        total_fare: totalFare,
-        guest_name: guestName,
-        guest_phone: guestPhone,
-        user_id: user?.id ?? null,
-        payment_method: "cash",
-        payment_status: "unpaid",
-      } as any).select("booking_ref, id").single();
-      if (error) throw error;
+      const data = await createBooking("cash", "unpaid");
       setBookingRef(data.booking_ref);
       setBookingId(data.id);
       setPaymentMethod("cash");
@@ -97,57 +132,27 @@ export default function Shuttle() {
   const handlePayOnline = async (gateway: "midtrans" | "xendit") => {
     setProcessingPayment(true);
     try {
-      // First create the booking
-      const totalFare = selectedScheduleFare * seatCount;
-      const { data: bookingData, error: bErr } = await supabase.from("shuttle_bookings").insert({
-        schedule_id: selectedScheduleId!,
-        seat_count: seatCount,
-        total_fare: totalFare,
-        guest_name: guestName,
-        guest_phone: guestPhone,
-        user_id: user?.id ?? null,
-        payment_method: gateway,
-        payment_status: "pending",
-      } as any).select("booking_ref, id").single();
-      if (bErr) throw bErr;
-
+      const bookingData = await createBooking(gateway, "pending");
       setBookingRef(bookingData.booking_ref);
       setBookingId(bookingData.id);
       setPaymentMethod(gateway);
 
-      // Call payment edge function
       const { data: payData, error: payErr } = await supabase.functions.invoke("create-shuttle-payment", {
         body: { booking_id: bookingData.id, gateway },
       });
       if (payErr) throw payErr;
 
       if (gateway === "midtrans" && payData?.token) {
-        // Open Midtrans Snap
         const script = document.createElement("script");
         script.src = "https://app.sandbox.midtrans.com/snap/snap.js";
         script.setAttribute("data-client-key", "");
         document.body.appendChild(script);
         script.onload = () => {
           (window as any).snap.pay(payData.token, {
-            onSuccess: () => {
-              setPaymentStatus("paid");
-              setStep("confirmation");
-              toast.success("Pembayaran berhasil!");
-            },
-            onPending: () => {
-              setPaymentStatus("pending");
-              setStep("confirmation");
-              toast.info("Menunggu pembayaran...");
-            },
-            onError: () => {
-              setPaymentStatus("unpaid");
-              setStep("confirmation");
-              toast.error("Pembayaran gagal");
-            },
-            onClose: () => {
-              setPaymentStatus("pending");
-              setStep("confirmation");
-            },
+            onSuccess: () => { setPaymentStatus("paid"); setStep("confirmation"); toast.success("Pembayaran berhasil!"); },
+            onPending: () => { setPaymentStatus("pending"); setStep("confirmation"); toast.info("Menunggu pembayaran..."); },
+            onError: () => { setPaymentStatus("unpaid"); setStep("confirmation"); toast.error("Pembayaran gagal"); },
+            onClose: () => { setPaymentStatus("pending"); setStep("confirmation"); },
           });
         };
       } else if (gateway === "xendit" && payData?.invoice_url) {
@@ -156,7 +161,6 @@ export default function Shuttle() {
         setStep("confirmation");
         toast.info("Selesaikan pembayaran di halaman Xendit");
       } else {
-        // Fallback
         setPaymentStatus("pending");
         setStep("confirmation");
       }
@@ -171,6 +175,8 @@ export default function Shuttle() {
     setStep("routes");
     setSelectedRouteId(null);
     setSelectedScheduleId(null);
+    setSelectedPickupPoint(null);
+    setSelectedRayonId(null);
     setSeatCount(1);
     setGuestName("");
     setGuestPhone("");
@@ -179,8 +185,6 @@ export default function Shuttle() {
     setPaymentMethod("cash");
     setPaymentStatus("unpaid");
   };
-
-  const totalFare = selectedScheduleFare * seatCount;
 
   return (
     <div className="min-h-screen pb-20">
@@ -230,12 +234,51 @@ export default function Shuttle() {
           </Card>
         ))}
 
+        {/* PICKUP POINT SELECTION */}
+        {step === "pickup" && (
+          <div className="space-y-3">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Pilih Titik Jemput</CardTitle>
+                <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}</p>
+              </CardHeader>
+            </Card>
+            {rayons?.map((rayon) => (
+              <Card key={rayon.id}>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">{rayon.name}</CardTitle>
+                  {rayon.description && <p className="text-xs text-muted-foreground">{rayon.description}</p>}
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {rayon.pickup_points.map((p: any) => (
+                    <button key={p.id} onClick={() => handleSelectPickupPoint(rayon, p)}
+                      className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:bg-accent/50 transition-colors">
+                      <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-primary w-6">J{p.stop_order}</span>
+                        <div>
+                          <p className="text-sm font-medium text-left">{p.name}</p>
+                          <p className="text-xs text-muted-foreground">{p.departure_time ? `${p.departure_time} WIB` : ""} • {p.distance_meters}m</p>
+                        </div>
+                      </div>
+                      <span className="font-bold text-sm text-primary">Rp {Number(p.fare).toLocaleString("id-ID")}</span>
+                    </button>
+                  ))}
+                </CardContent>
+              </Card>
+            ))}
+            <Button variant="outline" className="w-full" onClick={() => setStep("routes")}>Kembali</Button>
+          </div>
+        )}
+
         {/* SEATS */}
         {step === "seats" && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Pilih Kursi</CardTitle>
-              <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}</p>
+              <p className="text-xs text-muted-foreground">
+                {selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}
+                {selectedPickupPoint && ` • 📍 ${selectedPickupPoint.name}`}
+              </p>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
@@ -284,51 +327,22 @@ export default function Shuttle() {
               <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {seatCount} kursi • Rp {totalFare.toLocaleString("id-ID")}</p>
             </CardHeader>
             <CardContent className="space-y-3">
-              <button
-                onClick={handlePayCash}
-                disabled={booking || processingPayment}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-                  <Banknote className="w-6 h-6 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-sm">Bayar Tunai</p>
-                  <p className="text-xs text-muted-foreground">Bayar langsung saat naik</p>
-                </div>
+              <button onClick={handlePayCash} disabled={booking || processingPayment}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors">
+                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center"><Banknote className="w-6 h-6 text-primary" /></div>
+                <div className="text-left"><p className="font-bold text-sm">Bayar Tunai</p><p className="text-xs text-muted-foreground">Bayar langsung saat naik</p></div>
               </button>
-
-              <button
-                onClick={() => handlePayOnline("midtrans")}
-                disabled={booking || processingPayment}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-secondary" />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-sm">Midtrans</p>
-                  <p className="text-xs text-muted-foreground">GoPay, VA, Kartu Kredit</p>
-                </div>
+              <button onClick={() => handlePayOnline("midtrans")} disabled={booking || processingPayment}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors">
+                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center"><CreditCard className="w-6 h-6 text-secondary" /></div>
+                <div className="text-left"><p className="font-bold text-sm">Midtrans</p><p className="text-xs text-muted-foreground">GoPay, VA, Kartu Kredit</p></div>
               </button>
-
-              <button
-                onClick={() => handlePayOnline("xendit")}
-                disabled={booking || processingPayment}
-                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors"
-              >
-                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center">
-                  <CreditCard className="w-6 h-6 text-secondary" />
-                </div>
-                <div className="text-left">
-                  <p className="font-bold text-sm">Xendit</p>
-                  <p className="text-xs text-muted-foreground">OVO, DANA, Transfer Bank</p>
-                </div>
+              <button onClick={() => handlePayOnline("xendit")} disabled={booking || processingPayment}
+                className="w-full flex items-center gap-4 p-4 rounded-xl border-2 border-border hover:border-primary transition-colors">
+                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center"><CreditCard className="w-6 h-6 text-secondary" /></div>
+                <div className="text-left"><p className="font-bold text-sm">Xendit</p><p className="text-xs text-muted-foreground">OVO, DANA, Transfer Bank</p></div>
               </button>
-
-              {(booking || processingPayment) && (
-                <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
-              )}
+              {(booking || processingPayment) && <div className="flex justify-center py-4"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>}
             </CardContent>
           </Card>
         )}
@@ -347,6 +361,7 @@ export default function Shuttle() {
               guestPhone={guestPhone}
               totalFare={totalFare}
               paymentStatus={paymentStatus}
+              pickupPointName={selectedPickupPoint?.name}
             />
             <Button variant="outline" className="w-full" onClick={handleReset}>Pesan Lagi</Button>
           </div>
