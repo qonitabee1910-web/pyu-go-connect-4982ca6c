@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Shield, ChevronRight, Car, Bus } from "lucide-react";
+import { User, LogOut, Shield, ChevronRight, Car, Bus, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
@@ -44,6 +44,20 @@ export default function Profile() {
         .select("role")
         .eq("user_id", user!.id)
         .eq("role", "admin")
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user,
+  });
+
+  const { data: isDriver } = useQuery({
+    queryKey: ["is-driver", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("drivers")
+        .select("id")
+        .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return !!data;
@@ -94,6 +108,9 @@ export default function Profile() {
       <div className="px-6 space-y-2">
         <ProfileItem label="My Rides" icon={<ChevronRight className="w-4 h-4" />} onClick={() => {}} />
         <ProfileItem label="My Shuttle Bookings" icon={<ChevronRight className="w-4 h-4" />} onClick={() => {}} />
+        {isDriver && (
+          <ProfileItem label="Driver Mode" icon={<Truck className="w-4 h-4" />} onClick={() => navigate("/driver")} />
+        )}
         {isAdmin && (
           <ProfileItem label="Admin Dashboard" icon={<Shield className="w-4 h-4" />} onClick={() => navigate("/admin")} />
         )}

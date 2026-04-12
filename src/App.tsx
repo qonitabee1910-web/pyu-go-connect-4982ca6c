@@ -22,6 +22,11 @@ import AdminUsers from "./pages/admin/AdminUsers";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminSettings from "./pages/admin/AdminSettings";
 import AdminHotels from "./pages/admin/AdminHotels";
+import DriverLayout from "./pages/driver/DriverLayout";
+import DriverDashboard from "./pages/driver/DriverDashboard";
+import DriverActiveRide from "./pages/driver/DriverActiveRide";
+import DriverEarnings from "./pages/driver/DriverEarnings";
+import DriverHistory from "./pages/driver/DriverHistory";
 import NotFound from "./pages/NotFound";
 
 const Ride = lazy(() => import("./pages/Ride"));
@@ -57,6 +62,13 @@ const App = () => (
           </Route>
 
           <Route path="/auth" element={<Auth />} />
+
+          <Route path="/driver" element={<DriverLayout />}>
+            <Route index element={<DriverDashboard />} />
+            <Route path="ride" element={<DriverActiveRide />} />
+            <Route path="earnings" element={<DriverEarnings />} />
+            <Route path="history" element={<DriverHistory />} />
+          </Route>
 
           <Route path="/admin" element={<AdminLayout />}>
             <Route index element={<AdminOverview />} />
