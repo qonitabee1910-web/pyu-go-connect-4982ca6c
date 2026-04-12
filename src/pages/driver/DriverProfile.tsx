@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { ProfilePhoto } from "@/components/driver/profile/ProfilePhoto.tsx";
 import { BasicInfoForm } from "@/components/driver/profile/BasicInfoForm.tsx";
+import { DocumentVerification } from "@/components/driver/profile/DocumentVerification.tsx";
 import { SecuritySettings } from "@/components/driver/profile/SecuritySettings.tsx";
 import { ServiceSettings } from "@/components/driver/profile/ServiceSettings.tsx";
 import { VehicleInfo } from "@/components/driver/profile/VehicleInfo.tsx";
@@ -107,6 +108,12 @@ export default function DriverProfile() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Document Verification */}
+        <DocumentVerification 
+          driver={driver}
+          onUpdate={() => queryClient.invalidateQueries({ queryKey: ["driver-profile-full"] })}
+        />
 
         {/* Service Settings */}
         <ServiceSettings 
