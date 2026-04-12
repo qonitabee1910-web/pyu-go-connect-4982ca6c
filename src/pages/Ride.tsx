@@ -34,6 +34,10 @@ export default function Ride() {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [fareLoading, setFareLoading] = useState(false);
+  const handleRouteInfo = useCallback((dist: number, dur: number) => {
+    setDistanceKm(Math.round(dist * 100) / 100);
+    setDurationMin(Math.round(dur));
+  }, []);
   const nearbyDrivers = useDriverTracking(true);
   const driverMarkers = nearbyDrivers.map((d) => ({
     id: d.id, name: d.full_name, lat: d.current_lat, lng: d.current_lng,
@@ -151,7 +155,7 @@ export default function Ride() {
       <MapView
         pickup={pickup} dropoff={dropoff} drivers={driverMarkers}
         onMapClick={handleMapClick}
-        onRouteInfo={useCallback((dist: number, dur: number) => { setDistanceKm(Math.round(dist * 100) / 100); setDurationMin(Math.round(dur)); }, [])}
+        onRouteInfo={handleRouteInfo}
         className="w-full h-full"
       />
 
