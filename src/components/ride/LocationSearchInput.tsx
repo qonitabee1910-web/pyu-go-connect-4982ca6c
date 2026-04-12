@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
-import { X, Loader2 } from "lucide-react";
+import { X, Loader2, LocateFixed } from "lucide-react";
 
 interface NominatimResult {
   place_id: number;
@@ -15,6 +15,7 @@ interface LocationSearchInputProps {
   onSelect: (lat: number, lng: number, address: string) => void;
   onClear?: () => void;
   dotColor: string;
+  showMyLocation?: boolean;
 }
 
 export function LocationSearchInput({
@@ -23,13 +24,46 @@ export function LocationSearchInput({
   onSelect,
   onClear,
   dotColor,
+  showMyLocation = false,
 }: LocationSearchInputProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NominatimResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [locating, setLocating] = useState(false);
   const [open, setOpen] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>();
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const handleUseMyLocation = () => {
+    if (!navigator.geolocation) {
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`
+          );
+          const data = await res.json();
+          const address = data.display_name?.split(",").slice(0, 3).join(",") ?? `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setQuery(address);
+          onSelect(latitude, longitude, address);
+        } catch {
+          const address = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+          setQuery(address);
+          onSelect(latitude, longitude, address);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // Sync external value changes (from map tap)
   useEffect(() => {
@@ -91,28 +125,42 @@ export function LocationSearchInput({
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
-          className="h-8 text-xs bg-transparent border-none shadow-none px-0 focus-visible:ring-0"
+          className="h-8 text-xs bg-transparent border-none shadow-none px-0 focus-visible:ring-0 pr-12"
         />
-        {loading && (
-          <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground" />
-        )}
-        {query && onClear && (
-          <button
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setOpen(false);
-              onClear();
-            }}
-            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {loading && (
+            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+          )}
+          {showMyLocation && !query && !locating && (
+            <button
+              onClick={handleUseMyLocation}
+              className="text-primary hover:text-primary/80 transition-colors p-0.5"
+              title="Gunakan lokasi saya"
+            >
+              <LocateFixed className="w-4 h-4" />
+            </button>
+          )}
+          {locating && (
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          )}
+          {query && onClear && (
+            <button
+              onClick={() => {
+                setQuery("");
+                setResults([]);
+                setOpen(false);
+                onClear();
+              }}
+              className="text-muted-foreground hover:text-foreground p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto animate-fade-in">
           {results.map((r) => (
             <button
               key={r.place_id}

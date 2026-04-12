@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -57,6 +58,33 @@ function MapClickHandler({ onMapClick }: MapClickHandlerProps) {
   return null;
 }
 
+// Auto-fit map bounds to show all markers
+function AutoFitBounds({
+  pickup,
+  dropoff,
+}: {
+  pickup?: { lat: number; lng: number } | null;
+  dropoff?: { lat: number; lng: number } | null;
+}) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (pickup && dropoff) {
+      const bounds = L.latLngBounds(
+        [pickup.lat, pickup.lng],
+        [dropoff.lat, dropoff.lng]
+      );
+      map.flyToBounds(bounds.pad(0.3), { duration: 0.8, maxZoom: 16 });
+    } else if (pickup) {
+      map.flyTo([pickup.lat, pickup.lng], 15, { duration: 0.6 });
+    } else if (dropoff) {
+      map.flyTo([dropoff.lat, dropoff.lng], 15, { duration: 0.6 });
+    }
+  }, [pickup?.lat, pickup?.lng, dropoff?.lat, dropoff?.lng, map]);
+
+  return null;
+}
+
 interface MapViewProps {
   center?: [number, number];
   zoom?: number;
@@ -85,6 +113,7 @@ export function MapView({
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
       {onMapClick && <MapClickHandler onMapClick={onMapClick} />}
+      <AutoFitBounds pickup={pickup} dropoff={dropoff} />
       {pickup && (
         <Marker position={[pickup.lat, pickup.lng]} icon={pickupIcon}>
           <Popup>Pick-up location</Popup>

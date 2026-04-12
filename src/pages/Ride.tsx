@@ -156,6 +156,7 @@ export default function Ride() {
             placeholder="Cari lokasi jemput..."
             value={pickupAddress}
             dotColor="bg-primary"
+            showMyLocation
             onSelect={(lat, lng, address) => {
               setPickup({ lat, lng }, address);
               setSelectingMode("dropoff");
