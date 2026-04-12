@@ -23,10 +23,13 @@ export function useDriverLocation() {
           const lng = pos.coords.longitude;
           if (lastPos.current?.lat === lat && lastPos.current?.lng === lng) return;
           lastPos.current = { lat, lng };
-          await supabase
+          const { error } = await supabase
             .from("drivers")
             .update({ current_lat: lat, current_lng: lng })
             .eq("id", driverId);
+          if (error) {
+            console.error("Failed to update driver location:", error);
+          }
         },
         (err) => console.error("Geolocation error:", err),
         { enableHighAccuracy: true, timeout: 10000 }

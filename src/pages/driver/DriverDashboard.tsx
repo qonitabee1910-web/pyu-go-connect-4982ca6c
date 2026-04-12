@@ -29,18 +29,32 @@ export default function DriverDashboard() {
   const { isOnline, setOnline, setDriverId, driverId, currentRideId } = useDriverStore();
 
   // Fetch driver profile
-  const { data: driver } = useQuery({
+  const { data: driver, isLoading: driverLoading } = useQuery({
     queryKey: ["driver-profile", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drivers")
-        .select("*, vehicles(*)")
+        .select("*")
         .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!user,
+  });
+
+  // Fetch vehicles separately
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ["driver-vehicles", driverId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("vehicles")
+        .select("*")
+        .eq("driver_id", driverId!);
+      if (error) throw error;
+      return data ?? [];
+    },
+    enabled: !!driverId,
   });
 
   const updateVehicleMutation = useMutation({
@@ -101,6 +115,14 @@ export default function DriverDashboard() {
     },
   });
 
+  if (driverLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <p className="text-muted-foreground">Memuat...</p>
+      </div>
+    );
+  }
+
   if (!driver) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
@@ -159,8 +181,8 @@ export default function DriverDashboard() {
                 <SelectValue placeholder="Pilih Kendaraan" />
               </SelectTrigger>
               <SelectContent>
-                {driver.vehicles && (driver.vehicles as any) ? (
-                  [(driver.vehicles as any)].map((v) => (
+                {vehicles.length > 0 ? (
+                  vehicles.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
                       {v.model} ({v.plate_number}) - {v.vehicle_type}
                     </SelectItem>

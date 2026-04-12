@@ -15,16 +15,32 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const supabase = createClient(
+    const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Verify JWT and get user
+    const supabaseAuth = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_ANON_KEY")!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await supabaseAuth.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const userId = claimsData.claims.sub;
 
     const body = await req.json();
     const parsed = Schema.safeParse(body);
@@ -37,7 +53,7 @@ Deno.serve(async (req) => {
     const { ride_id } = parsed.data;
 
     // Get ride
-    const { data: ride, error: rideErr } = await supabase.from("rides").select("*").eq("id", ride_id).single();
+    const { data: ride, error: rideErr } = await supabaseAdmin.from("rides").select("*").eq("id", ride_id).single();
     if (rideErr || !ride) {
       return new Response(JSON.stringify({ error: "Ride not found" }), {
         status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -56,10 +72,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Verify caller is the assigned driver
+    const { data: driverRecord } = await supabaseAdmin
+      .from("drivers")
+      .select("id")
+      .eq("id", ride.driver_id)
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (!driverRecord) {
+      return new Response(JSON.stringify({ error: "Anda bukan driver yang ditugaskan untuk ride ini" }), {
+        status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const fare = Number(ride.fare ?? 0);
 
     // Get commission rate from app_settings
-    const { data: fareSettings } = await supabase
+    const { data: fareSettings } = await supabaseAdmin
       .from("app_settings")
       .select("value")
       .eq("key", "ride_fares")
@@ -68,18 +98,13 @@ Deno.serve(async (req) => {
     let commissionRate = 0.2;
     if (fareSettings?.value) {
       const v = fareSettings.value as any;
-      const serviceConfig = v[ride.service_type] || v["car"];
-      if (serviceConfig?.surge_multiplier !== undefined) {
-        // Use commission from settings if available
-      }
-      // Check for commission_rate in settings
       if (v.commission_rate !== undefined) {
         commissionRate = Number(v.commission_rate);
       }
     }
 
     // Also check payment_settings for default commission
-    const { data: paySettings } = await supabase
+    const { data: paySettings } = await supabaseAdmin
       .from("payment_settings")
       .select("commission_rate")
       .eq("is_default", true)
@@ -92,13 +117,13 @@ Deno.serve(async (req) => {
     const netEarning = fare - commissionAmount;
 
     // Mark ride as completed
-    await supabase.from("rides").update({ status: "completed" }).eq("id", ride_id);
+    await supabaseAdmin.from("rides").update({ status: "completed" }).eq("id", ride_id);
 
     // Mark driver as available
-    await supabase.from("drivers").update({ status: "available" }).eq("id", ride.driver_id);
+    await supabaseAdmin.from("drivers").update({ status: "available" }).eq("id", ride.driver_id);
 
     // Create driver_earnings record
-    await supabase.from("driver_earnings").insert({
+    await supabaseAdmin.from("driver_earnings").insert({
       driver_id: ride.driver_id,
       ride_id: ride_id,
       gross_fare: fare,
