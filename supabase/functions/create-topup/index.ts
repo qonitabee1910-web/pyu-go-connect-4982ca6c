@@ -1,17 +1,18 @@
+/// <reference lib="deno.ns" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { z } from "https://esm.sh/zod@3.23.8";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
-import { z } from "https://esm.sh/zod@3.23.8";
 
 const TopUpSchema = z.object({
   amount: z.number().min(10000, "Minimum top-up is Rp 10,000").max(10000000, "Maximum top-up is Rp 10,000,000"),
   gateway: z.enum(["midtrans", "xendit"]).optional(),
 });
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }

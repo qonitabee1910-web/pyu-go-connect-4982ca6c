@@ -1,3 +1,4 @@
+/// <reference lib="deno.ns" />
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
@@ -17,7 +18,7 @@ function encrypt(text: string): string {
   return btoa(result.join(""));
 }
 
-Deno.serve(async (req) => {
+Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
@@ -92,7 +93,7 @@ Deno.serve(async (req) => {
     }
 
     throw new Error("Invalid action");
-  } catch (error) {
+  } catch (error: any) {
     console.error("manage-gateway-keys error:", error);
     return new Response(JSON.stringify({ error: (error as Error).message }), { 
       status: error.message === "Unauthorized" ? 401 : (error.message.includes("Forbidden") ? 403 : 500), 
