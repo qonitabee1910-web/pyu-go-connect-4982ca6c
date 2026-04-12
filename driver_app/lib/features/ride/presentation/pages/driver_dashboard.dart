@@ -33,7 +33,6 @@ class DriverDashboard extends ConsumerStatefulWidget {
 
 class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   final LocationService _locationService = LocationService();
-  GoogleMapController? _mapController;
 
   @override
   Widget build(BuildContext context) {
@@ -91,7 +90,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
                 Text(
                   isOnline ? '🟢 Online' : '⚫ Offline',
                   style: TextStyle(
-                    color: isOnline ? Colors.emerald : Colors.grey,
+                    color: isOnline ? Colors.green : Colors.grey,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
@@ -112,7 +111,7 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
                   _locationService.stopLocationTracking();
                 }
               },
-              activeThumbColor: Colors.emerald,
+              activeThumbColor: Colors.green,
             ),
           ],
         ),
@@ -123,14 +122,14 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
   Widget _buildStatsRow(Driver driver) {
     return Row(
       children: [
-        _buildStatCard(LucideIcons.car, '0', 'Rides', Colors.emerald),
+        _buildStatCard(LucideIcons.car, '0', 'Rides', Colors.green),
         const SizedBox(width: 8),
         _buildStatCard(
           LucideIcons.dollarSign,
           NumberFormat.currency(locale: 'id_ID', symbol: 'Rp', decimalDigits: 0)
               .format(0),
           'Pendapatan',
-          Colors.emerald,
+          Colors.green,
         ),
         const SizedBox(width: 8),
         _buildStatCard(LucideIcons.star, driver.rating.toStringAsFixed(1), 'Rating', Colors.orange),
@@ -171,7 +170,6 @@ class _DriverDashboardState extends ConsumerState<DriverDashboard> {
         height: 250,
         child: GoogleMap(
           initialCameraPosition: CameraPosition(target: position, zoom: 14),
-          onMapCreated: (controller) => _mapController = controller,
           markers: {
             Marker(
               markerId: const MarkerId('driver'),

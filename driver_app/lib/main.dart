@@ -30,8 +30,8 @@ class MyApp extends StatelessWidget {
       title: 'PYU-GO Driver',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.emerald,
-          primary: Colors.emerald,
+          seedColor: Colors.green,
+          primary: Colors.green,
         ),
         useMaterial3: true,
       ),

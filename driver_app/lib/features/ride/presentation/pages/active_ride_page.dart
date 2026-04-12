@@ -3,8 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../domain/ride_model.dart';
-import '../domain/ride_repository.dart';
+import '../../domain/ride_model.dart';
+import '../../domain/ride_repository.dart';
 
 class ActiveRidePage extends StatefulWidget {
   final RideModel ride;
@@ -16,7 +16,6 @@ class ActiveRidePage extends StatefulWidget {
 
 class _ActiveRidePageState extends State<ActiveRidePage> {
   final RideRepository _rideRepo = RideRepository();
-  GoogleMapController? _mapController;
   late RideStatus _currentStatus;
 
   @override
@@ -34,19 +33,22 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
 
   Future<void> _updateStatus() async {
     final newStatus = _currentStatus == RideStatus.accepted 
-        ? RideStatus.in_progress 
+        ? RideStatus.inProgress 
         : RideStatus.completed;
 
     try {
       if (newStatus == RideStatus.completed) {
         final driverId = Supabase.instance.client.auth.currentUser!.id;
         await _rideRepo.completeRide(widget.ride.id, driverId);
+        if (!mounted) return;
         Navigator.pop(context);
       } else {
         await _rideRepo.updateRideStatus(widget.ride.id, newStatus);
+        if (!mounted) return;
         setState(() => _currentStatus = newStatus);
       }
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
@@ -75,7 +77,6 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
               target: LatLng(targetLat, targetLng),
               zoom: 15,
             ),
-            onMapCreated: (controller) => _mapController = controller,
             markers: {
               Marker(
                 markerId: const MarkerId('destination'),
@@ -104,8 +105,8 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: Colors.emerald.withOpacity(0.1),
-                          child: Icon(LucideIcons.user, color: Colors.emerald),
+                          backgroundColor: Colors.green.withValues(alpha: 0.1),
+                          child: Icon(LucideIcons.user, color: Colors.green),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -129,7 +130,7 @@ class _ActiveRidePageState extends State<ActiveRidePage> {
                     ElevatedButton(
                       onPressed: _updateStatus,
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: _currentStatus == RideStatus.accepted ? Colors.blue : Colors.emerald,
+                        backgroundColor: _currentStatus == RideStatus.accepted ? Colors.blue : Colors.green,
                         foregroundColor: Colors.white,
                         minimumSize: const Size(double.infinity, 54),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

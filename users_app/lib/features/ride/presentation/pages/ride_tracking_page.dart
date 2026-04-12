@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../ride/domain/ride_model.dart';
+import '../../domain/ride_model.dart';
 
 class RideTrackingPage extends StatefulWidget {
   final String rideId;
@@ -112,7 +112,7 @@ class _RideTrackingPageState extends State<RideTrackingPage> {
                     Row(
                       children: [
                         CircleAvatar(
-                          backgroundColor: Colors.blue.withOpacity(0.1),
+                          backgroundColor: Colors.blue.withValues(alpha: 0.1),
                           child: Icon(LucideIcons.car, color: Colors.blue),
                         ),
                         const SizedBox(width: 12),

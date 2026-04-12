@@ -10,7 +10,6 @@ class RidePage extends StatefulWidget {
 }
 
 class _RidePageState extends State<RidePage> {
-  GoogleMapController? _mapController;
   final LatLng _initialPosition = const LatLng(-7.43, 109.24);
 
   @override
@@ -21,7 +20,6 @@ class _RidePageState extends State<RidePage> {
           // Map
           GoogleMap(
             initialCameraPosition: CameraPosition(target: _initialPosition, zoom: 14),
-            onMapCreated: (controller) => _mapController = controller,
             zoomControlsEnabled: false,
             myLocationEnabled: true,
             myLocationButtonEnabled: false,

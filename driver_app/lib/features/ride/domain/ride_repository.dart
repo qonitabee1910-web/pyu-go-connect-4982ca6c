@@ -1,5 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../domain/ride_model.dart';
+import 'ride_model.dart';
 
 class RideRepository {
   final SupabaseClient _supabase = Supabase.instance.client;

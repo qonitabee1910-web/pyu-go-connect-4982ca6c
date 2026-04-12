@@ -1,7 +1,7 @@
 enum RideStatus {
   pending,
   accepted,
-  in_progress,
+  inProgress,
   completed,
   cancelled,
 }
