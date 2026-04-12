@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { MapView } from "@/components/map/MapView";
 import { useRideStore } from "@/stores/rideStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useDriverTracking } from "@/hooks/useDriverTracking";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { MapPin, Navigation, DollarSign, X, Loader2 } from "lucide-react";
@@ -24,6 +25,13 @@ export default function Ride() {
   const { pickup, dropoff, pickupAddress, dropoffAddress, fare, rideStatus, setPickup, setDropoff, setFare, setRideStatus, setCurrentRideId, currentRideId, resetRide } = useRideStore();
   const [selectingMode, setSelectingMode] = useState<"pickup" | "dropoff">("pickup");
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const nearbyDrivers = useDriverTracking(true);
+  const driverMarkers = nearbyDrivers.map((d) => ({
+    id: d.id,
+    name: d.full_name,
+    lat: d.current_lat,
+    lng: d.current_lng,
+  }));
 
   useEffect(() => {
     if (!user) {
@@ -142,7 +150,7 @@ export default function Ride() {
 
   return (
     <div className="relative h-screen">
-      <MapView pickup={pickup} dropoff={dropoff} onMapClick={handleMapClick} className="w-full h-full" />
+      <MapView pickup={pickup} dropoff={dropoff} drivers={driverMarkers} onMapClick={handleMapClick} className="w-full h-full" />
 
       {/* Top bar overlay */}
       <div className="absolute top-4 left-4 right-4 z-10">
