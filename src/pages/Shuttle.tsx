@@ -44,6 +44,7 @@ export default function Shuttle() {
   const [paymentMethod, setPaymentMethod] = useState<string>("cash");
   const [paymentStatus, setPaymentStatus] = useState("unpaid");
   const [processingPayment, setProcessingPayment] = useState(false);
+  const [sessionId] = useState(() => user?.id || `guest-${crypto.randomUUID()}`);
 
   const { data: serviceTypes } = useQuery({
     queryKey: ["shuttle-service-types"],
@@ -178,33 +179,21 @@ export default function Shuttle() {
       return;
     }
     
-    // Seat Locking Mechanism: Mark as reserved in DB
+    // Seat Locking Mechanism: Use atomic RPC
     try {
-      const { data: currentSeats } = await (supabase as any)
-        .from("shuttle_seats")
-        .select("*")
-        .eq("schedule_id", selectedScheduleId!)
-        .in("seat_number", selectedSeats);
+      const { data: success, error } = await (supabase as any).rpc("reserve_shuttle_seats", {
+        p_schedule_id: selectedScheduleId,
+        p_seat_numbers: selectedSeats,
+        p_session_id: sessionId
+      });
 
-      const isAnyTaken = (currentSeats as any[])?.some((s: any) => s.status !== "available");
-      if (isAnyTaken) {
+      if (error) throw error;
+      
+      if (!success) {
         toast.error("Maaf, satu atau lebih kursi sudah dipesan/terkunci. Silakan pilih kursi lain.");
         refetchSeats();
         return;
       }
-
-      // Lock seats
-      const { error } = await (supabase as any)
-        .from("shuttle_seats")
-        .update({ 
-          status: "reserved", 
-          reserved_at: new Date().toISOString(),
-          reserved_by_session: user?.id ?? "guest-" + Math.random().toString(36).substr(2, 9)
-        })
-        .eq("schedule_id", selectedScheduleId!)
-        .in("seat_number", selectedSeats);
-
-      if (error) throw error;
       
       setStep("guest_info");
     } catch (err: any) {
@@ -213,7 +202,18 @@ export default function Shuttle() {
   };
 
   const handleGuestInfoNext = () => {
-    if (!guestName || !guestPhone) { toast.error("Masukkan nama dan nomor HP"); return; }
+    if (!guestName) {
+      toast.error("Masukkan nama");
+      return;
+    }
+    
+    // Basic phone validation: min 10 digits
+    const phoneRegex = /^[0-9]{10,15}$/;
+    if (!phoneRegex.test(guestPhone.replace(/\D/g, ''))) {
+      toast.error("Masukkan nomor HP yang valid (min 10 digit)");
+      return;
+    }
+    
     setStep("payment");
   };
 
@@ -225,44 +225,24 @@ export default function Shuttle() {
     const randStr = Math.random().toString(36).substring(2, 7).toUpperCase();
     const ref = `PYU-${dateStr}-${randStr}`;
 
-    // Transaction logic for Booking + Seats
-    const { data: bookingData, error: bErr } = await (supabase as any).from("shuttle_bookings").insert({
-      booking_ref: ref,
-      schedule_id: selectedScheduleId!,
-      seat_count: selectedSeats.length,
-      total_fare: totalFare,
-      guest_name: guestName,
-      guest_phone: guestPhone,
-      user_id: user?.id ?? null,
-      payment_method: pMethod,
-      payment_status: pStatus,
-      rayon_id: selectedRayonId,
-      pickup_point_id: selectedPickupPoint?.id ?? null,
-      status: "confirmed"
-    }).select("id, booking_ref").single();
+    // Atomic transaction using RPC
+    const { data: bookingId, error } = await (supabase as any).rpc("create_shuttle_booking_atomic", {
+      p_schedule_id: selectedScheduleId,
+      p_user_id: user?.id ?? null,
+      p_guest_name: guestName,
+      p_guest_phone: guestPhone,
+      p_seat_numbers: selectedSeats,
+      p_total_fare: totalFare,
+      p_payment_method: pMethod,
+      p_payment_status: pStatus,
+      p_rayon_id: selectedRayonId,
+      p_pickup_point_id: selectedPickupPoint?.id ?? null,
+      p_booking_ref: ref
+    });
 
-    if (bErr) throw bErr;
+    if (error) throw error;
 
-    // Update seats status to 'booked' and create mapping
-    const { data: seatsData } = await (supabase as any)
-      .from("shuttle_seats")
-      .select("id, seat_number")
-      .eq("schedule_id", selectedScheduleId!)
-      .in("seat_number", selectedSeats);
-
-    if (seatsData && (seatsData as any[]).length > 0) {
-      const seatIds = (seatsData as any[]).map((s: any) => s.id);
-      
-      // Update seats to booked
-      await (supabase as any).from("shuttle_seats").update({ status: "booked" }).in("id", seatIds);
-      
-      // Insert mapping
-      await (supabase as any).from("shuttle_booking_seats").insert(
-        seatIds.map((sid: string) => ({ booking_id: (bookingData as any).id, seat_id: sid }))
-      );
-    }
-
-    return bookingData as any;
+    return { id: String(bookingId), booking_ref: ref };
   };
 
   const handlePayCash = async () => {
