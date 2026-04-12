@@ -258,8 +258,15 @@ export default function Shuttle() {
                   selected={selectedDate}
                   onSelect={handleSelectDate}
                   disabled={(date) => {
-                    const hasSchedule = availableDates.some((d) => isSameDay(d, date));
-                    return !hasSchedule;
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    return date < today;
+                  }}
+                  modifiers={{
+                    hasSchedule: availableDates,
+                  }}
+                  modifiersClassNames={{
+                    hasSchedule: "bg-primary/20 font-bold",
                   }}
                   className={cn("p-3 pointer-events-auto")}
                 />
