@@ -125,28 +125,42 @@ export function LocationSearchInput({
           onChange={(e) => handleChange(e.target.value)}
           onFocus={() => results.length > 0 && setOpen(true)}
           placeholder={placeholder}
-          className="h-8 text-xs bg-transparent border-none shadow-none px-0 focus-visible:ring-0"
+          className="h-8 text-xs bg-transparent border-none shadow-none px-0 focus-visible:ring-0 pr-12"
         />
-        {loading && (
-          <Loader2 className="absolute right-6 top-1/2 -translate-y-1/2 w-3 h-3 animate-spin text-muted-foreground" />
-        )}
-        {query && onClear && (
-          <button
-            onClick={() => {
-              setQuery("");
-              setResults([]);
-              setOpen(false);
-              onClear();
-            }}
-            className="absolute right-0 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          {loading && (
+            <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
+          )}
+          {showMyLocation && !query && !locating && (
+            <button
+              onClick={handleUseMyLocation}
+              className="text-primary hover:text-primary/80 transition-colors p-0.5"
+              title="Gunakan lokasi saya"
+            >
+              <LocateFixed className="w-4 h-4" />
+            </button>
+          )}
+          {locating && (
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
+          )}
+          {query && onClear && (
+            <button
+              onClick={() => {
+                setQuery("");
+                setResults([]);
+                setOpen(false);
+                onClear();
+              }}
+              className="text-muted-foreground hover:text-foreground p-0.5"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {open && results.length > 0 && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto">
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 max-h-48 overflow-y-auto animate-fade-in">
           {results.map((r) => (
             <button
               key={r.place_id}
