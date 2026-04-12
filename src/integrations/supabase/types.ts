@@ -1075,6 +1075,22 @@ export type Database = {
     }
     Functions: {
       cleanup_expired_seat_reservations: { Args: never; Returns: undefined }
+      create_shuttle_booking_atomic: {
+        Args: {
+          p_booking_ref?: string
+          p_guest_name?: string
+          p_guest_phone?: string
+          p_payment_method?: string
+          p_payment_status?: string
+          p_pickup_point_id?: string
+          p_rayon_id?: string
+          p_schedule_id: string
+          p_seat_numbers?: string[]
+          p_total_fare?: number
+          p_user_id?: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
