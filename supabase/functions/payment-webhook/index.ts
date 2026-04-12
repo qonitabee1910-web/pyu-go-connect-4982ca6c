@@ -66,20 +66,33 @@ async function handleMidtrans(supabase: any, body: any, _req: Request) {
     return new Response(JSON.stringify({ status: "no_pending_txn" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  if (isSuccess) {
-    await supabase.rpc("process_wallet_transaction", {
-      p_wallet_id: txn.wallet_id,
-      p_type: "top_up",
-      p_amount: txn.amount,
-      p_description: `Top-up via Midtrans (${order_id})`,
-      p_reference_id: order_id,
-      p_payment_gateway: "midtrans",
-      p_gateway_transaction_id: order_id,
-    });
-    // Mark original pending txn as completed
-    await supabase.from("wallet_transactions").update({ status: "completed" }).eq("id", txn.id);
-  } else {
-    await supabase.from("wallet_transactions").update({ status: "failed" }).eq("id", txn.id);
+  // Check if this is a shuttle payment
+  if (order_id.startsWith("SHUTTLE-")) {
+    if (isSuccess) {
+      // Extract booking ref from order_id pattern: SHUTTLE-{ref}-{timestamp}
+      const parts = order_id.split("-");
+      const bookingRef = parts.slice(1, parts.length - 1).join("-");
+      await supabase.from("shuttle_bookings").update({ payment_status: "paid" }).eq("booking_ref", bookingRef);
+    } else {
+      const parts = order_id.split("-");
+      const bookingRef = parts.slice(1, parts.length - 1).join("-");
+      await supabase.from("shuttle_bookings").update({ payment_status: "unpaid" }).eq("booking_ref", bookingRef);
+    }
+  } else if (txn) {
+    if (isSuccess) {
+      await supabase.rpc("process_wallet_transaction", {
+        p_wallet_id: txn.wallet_id,
+        p_type: "top_up",
+        p_amount: txn.amount,
+        p_description: `Top-up via Midtrans (${order_id})`,
+        p_reference_id: order_id,
+        p_payment_gateway: "midtrans",
+        p_gateway_transaction_id: order_id,
+      });
+      await supabase.from("wallet_transactions").update({ status: "completed" }).eq("id", txn.id);
+    } else {
+      await supabase.from("wallet_transactions").update({ status: "failed" }).eq("id", txn.id);
+    }
   }
 
   return new Response(JSON.stringify({ status: "ok" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -111,19 +124,31 @@ async function handleXendit(supabase: any, body: any, req: Request) {
     return new Response(JSON.stringify({ status: "no_pending_txn" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
 
-  if (isSuccess) {
-    await supabase.rpc("process_wallet_transaction", {
-      p_wallet_id: txn.wallet_id,
-      p_type: "top_up",
-      p_amount: txn.amount,
-      p_description: `Top-up via Xendit (${external_id})`,
-      p_reference_id: external_id,
-      p_payment_gateway: "xendit",
-      p_gateway_transaction_id: invoiceId,
-    });
-    await supabase.from("wallet_transactions").update({ status: "completed" }).eq("id", txn.id);
-  } else {
-    await supabase.from("wallet_transactions").update({ status: "failed" }).eq("id", txn.id);
+  if (external_id.startsWith("SHUTTLE-")) {
+    if (isSuccess) {
+      const parts = external_id.split("-");
+      const bookingRef = parts.slice(1, parts.length - 1).join("-");
+      await supabase.from("shuttle_bookings").update({ payment_status: "paid" }).eq("booking_ref", bookingRef);
+    } else {
+      const parts = external_id.split("-");
+      const bookingRef = parts.slice(1, parts.length - 1).join("-");
+      await supabase.from("shuttle_bookings").update({ payment_status: "unpaid" }).eq("booking_ref", bookingRef);
+    }
+  } else if (txn) {
+    if (isSuccess) {
+      await supabase.rpc("process_wallet_transaction", {
+        p_wallet_id: txn.wallet_id,
+        p_type: "top_up",
+        p_amount: txn.amount,
+        p_description: `Top-up via Xendit (${external_id})`,
+        p_reference_id: external_id,
+        p_payment_gateway: "xendit",
+        p_gateway_transaction_id: invoiceId,
+      });
+      await supabase.from("wallet_transactions").update({ status: "completed" }).eq("id", txn.id);
+    } else {
+      await supabase.from("wallet_transactions").update({ status: "failed" }).eq("id", txn.id);
+    }
   }
 
   return new Response(JSON.stringify({ status: "ok" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
