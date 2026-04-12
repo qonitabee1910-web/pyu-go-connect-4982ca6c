@@ -14,6 +14,116 @@ export type Database = {
   }
   public: {
     Tables: {
+      ad_metrics: {
+        Row: {
+          ad_id: string
+          clicks_count: number
+          id: string
+          last_recorded_at: string
+          views_count: number
+        }
+        Insert: {
+          ad_id: string
+          clicks_count?: number
+          id?: string
+          last_recorded_at?: string
+          views_count?: number
+        }
+        Update: {
+          ad_id?: string
+          clicks_count?: number
+          id?: string
+          last_recorded_at?: string
+          views_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ad_metrics_ad_id_fkey"
+            columns: ["ad_id"]
+            isOneToOne: true
+            referencedRelation: "ads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ads: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number
+          end_date: string
+          id: string
+          image_url: string
+          is_active: boolean
+          link_url: string | null
+          placement: Database["public"]["Enums"]["ad_placement"]
+          start_date: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          end_date: string
+          id?: string
+          image_url: string
+          is_active?: boolean
+          link_url?: string | null
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          start_date?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number
+          end_date?: string
+          id?: string
+          image_url?: string
+          is_active?: boolean
+          link_url?: string | null
+          placement?: Database["public"]["Enums"]["ad_placement"]
+          start_date?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string
+          id: string
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string
+          table_name: string
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id: string
+          table_name: string
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
       drivers: {
         Row: {
           created_at: string
@@ -292,6 +402,104 @@ export type Database = {
           phone?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      promo_redemptions: {
+        Row: {
+          created_at: string
+          discount_amount: number
+          id: string
+          promo_id: string
+          reference_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          discount_amount: number
+          id?: string
+          promo_id: string
+          reference_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          discount_amount?: number
+          id?: string
+          promo_id?: string
+          reference_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "promo_redemptions_promo_id_fkey"
+            columns: ["promo_id"]
+            isOneToOne: false
+            referencedRelation: "promos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      promos: {
+        Row: {
+          code: string
+          created_at: string
+          description: string | null
+          discount_type: Database["public"]["Enums"]["promo_discount_type"]
+          discount_value: number
+          image_url: string | null
+          end_date: string
+          id: string
+          is_active: boolean
+          max_discount: number | null
+          min_purchase: number | null
+          quota: number
+          start_date: string
+          target_service: Database["public"]["Enums"]["promo_target_service"]
+          target_user_segment: Database["public"]["Enums"]["promo_user_segment"]
+          title: string
+          updated_at: string
+          used_count: number
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          description?: string | null
+          discount_type?: Database["public"]["Enums"]["promo_discount_type"]
+          discount_value: number
+          image_url?: string | null
+          end_date: string
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_purchase?: number | null
+          quota?: number
+          start_date?: string
+          target_service?: Database["public"]["Enums"]["promo_target_service"]
+          target_user_segment?: Database["public"]["Enums"]["promo_user_segment"]
+          title: string
+          updated_at?: string
+          used_count?: number
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          description?: string | null
+          discount_type?: Database["public"]["Enums"]["promo_discount_type"]
+          discount_value?: number
+          image_url?: string | null
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          max_discount?: number | null
+          min_purchase?: number | null
+          quota?: number
+          start_date?: string
+          target_service?: Database["public"]["Enums"]["promo_target_service"]
+          target_user_segment?: Database["public"]["Enums"]["promo_user_segment"]
+          title?: string
+          updated_at?: string
+          used_count?: number
         }
         Relationships: []
       }
@@ -751,6 +959,13 @@ export type Database = {
         }
         Returns: boolean
       }
+      increment_ad_metric: {
+        Args: {
+          p_ad_id: string
+          p_type: string
+        }
+        Returns: undefined
+      }
       process_wallet_transaction: {
         Args: {
           p_amount: number
@@ -766,10 +981,18 @@ export type Database = {
       }
     }
     Enums: {
+      ad_placement:
+        | "dashboard_banner"
+        | "sidebar"
+        | "popup"
+        | "ride_completion"
       app_role: "admin" | "moderator" | "user"
       booking_status: "confirmed" | "cancelled" | "completed"
       driver_status: "available" | "busy" | "offline"
       hotel_booking_status: "pending" | "confirmed" | "cancelled" | "completed"
+      promo_discount_type: "percentage" | "fixed_amount"
+      promo_target_service: "ride" | "shuttle" | "hotel" | "all"
+      promo_user_segment: "all" | "new_user" | "loyal_user" | "inactive_user"
       ride_service_type: "bike" | "bike_women" | "car"
       ride_status:
         | "pending"
@@ -913,10 +1136,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ad_placement: ["dashboard_banner", "sidebar", "popup", "ride_completion"],
       app_role: ["admin", "moderator", "user"],
       booking_status: ["confirmed", "cancelled", "completed"],
       driver_status: ["available", "busy", "offline"],
       hotel_booking_status: ["pending", "confirmed", "cancelled", "completed"],
+      promo_discount_type: ["percentage", "fixed_amount"],
+      promo_target_service: ["ride", "shuttle", "hotel", "all"],
+      promo_user_segment: ["all", "new_user", "loyal_user", "inactive_user"],
       ride_service_type: ["bike", "bike_women", "car"],
       ride_status: [
         "pending",

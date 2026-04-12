@@ -5,6 +5,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { PromoSection } from "@/components/home/PromoSection";
+import { AdsBanner } from "@/components/home/AdsBanner";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -45,6 +47,9 @@ export default function Index() {
         </button>
       </div>
 
+      {/* Banner Section */}
+      <AdsBanner placement="dashboard_banner" />
+
       {/* Services Grid */}
       <div className="px-6 -mt-2">
         <div className="grid grid-cols-3 gap-3 mt-6">
@@ -53,6 +58,9 @@ export default function Index() {
           <ServiceCard icon={<Building2 className="w-7 h-7" />} title="Hotel" description="Book rooms" onClick={() => navigate("/hotel")} color="text-accent-foreground" />
         </div>
       </div>
+
+      {/* Promo Section */}
+      <PromoSection />
 
       {/* Recent Activity */}
       <div className="px-6 mt-8 flex-1">
