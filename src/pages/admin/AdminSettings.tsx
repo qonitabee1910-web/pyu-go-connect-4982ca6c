@@ -133,10 +133,9 @@ function ServiceZonesTab() {
 
   const addZone = () => setZones((prev) => [...prev, { name: "", lat: 0, lng: 0, radius_km: 10 }]);
   const removeZone = (i: number) => setZones((prev) => prev.filter((_, idx) => idx !== i));
+  const validZones = useMemo(() => zones.filter((z) => z.lat !== 0 && z.lng !== 0 && z.radius_km > 0), [zones]);
 
   if (isLoading) return <Loader2 className="w-5 h-5 animate-spin mx-auto mt-8" />;
-
-  const validZones = useMemo(() => zones.filter((z) => z.lat !== 0 && z.lng !== 0 && z.radius_km > 0), [zones]);
 
   return (
     <div className="space-y-4">
