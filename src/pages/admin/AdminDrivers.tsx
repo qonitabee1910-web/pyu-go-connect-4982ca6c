@@ -38,7 +38,7 @@ export default function AdminDrivers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drivers")
-        .select("*, vehicles(plate_number, model, vehicle_type)")
+        .select("id, full_name, phone, avatar_url, status, is_verified, rating, created_at, registration_status, ktp_url, sim_url, rejection_reason, gender, vehicles(plate_number, model, vehicle_type)")
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
