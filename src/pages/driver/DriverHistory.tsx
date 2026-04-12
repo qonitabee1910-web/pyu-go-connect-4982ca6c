@@ -10,18 +10,10 @@ export default function DriverHistory() {
   const { data: rides, isLoading } = useQuery({
     queryKey: ["driver-ride-history", driverId],
     queryFn: async () => {
-      // Get driver record to find driver_id in rides
-      const { data: driver } = await supabase
-        .from("drivers")
-        .select("id")
-        .eq("id", driverId!)
-        .single();
-      if (!driver) return [];
-
       const { data, error } = await supabase
         .from("rides")
         .select("*")
-        .eq("driver_id", driver.id)
+        .eq("driver_id", driverId!)
         .eq("status", "completed")
         .order("created_at", { ascending: false })
         .limit(50);

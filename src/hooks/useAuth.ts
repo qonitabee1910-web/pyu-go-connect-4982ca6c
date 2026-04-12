@@ -92,18 +92,12 @@ export function useAuth() {
     if (error) return { error };
 
     if (data.user) {
-      // 2. Buat profil publik untuk semua user
-      const { error: profileError } = await supabase.from("profiles").insert({
-        user_id: data.user.id,
-        full_name: fullName,
-        phone: options?.phone || null,
-      });
-
-      if (profileError) {
-        console.error("Error creating profile:", profileError);
+      // Profile is created by handle_new_user trigger, update with phone if needed
+      if (options?.phone) {
+        await supabase.from("profiles").update({ phone: options.phone }).eq("user_id", data.user.id);
       }
 
-      // 3. Jika driver, inisialisasi tabel drivers
+      // Jika driver, inisialisasi tabel drivers
       if (options?.isDriver) {
         const { error: driverError } = await supabase.from("drivers").insert({
           user_id: data.user.id,
