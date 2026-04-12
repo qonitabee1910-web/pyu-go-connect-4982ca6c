@@ -10,11 +10,14 @@ const supabase = createClient(
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 );
 
-// Pricing config (Rp)
-const BASE_FARE = 7000;
-const PER_KM_RATE = 2500;
-const MIN_FARE = 10000;
-const SURGE_MULTIPLIER_THRESHOLD = 5; // active rides = surge
+// Pricing config (Rp) per service type
+const PRICING: Record<string, { base: number; perKm: number; minFare: number }> = {
+  bike: { base: 5000, perKm: 1800, minFare: 7000 },
+  bike_women: { base: 5500, perKm: 2000, minFare: 8000 },
+  car: { base: 7000, perKm: 2500, minFare: 10000 },
+};
+
+const SURGE_MULTIPLIER_THRESHOLD = 5;
 
 function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371;
@@ -32,7 +35,7 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng } = await req.json();
+    const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, service_type } = await req.json();
 
     if (!pickup_lat || !pickup_lng || !dropoff_lat || !dropoff_lng) {
       return new Response(JSON.stringify({ error: "Missing coordinates" }), {
@@ -40,6 +43,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    const sType = service_type && PRICING[service_type] ? service_type : "car";
+    const pricing = PRICING[sType];
     const distance_km = haversineKm(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng);
 
     // Check surge
@@ -49,8 +54,8 @@ Deno.serve(async (req) => {
       .in("status", ["pending", "accepted", "in_progress"]);
 
     const surgeMultiplier = (count ?? 0) >= SURGE_MULTIPLIER_THRESHOLD ? 1.5 : 1.0;
-    const rawFare = BASE_FARE + (distance_km * PER_KM_RATE);
-    const fare = Math.max(MIN_FARE, Math.round(rawFare * surgeMultiplier / 500) * 500);
+    const rawFare = pricing.base + (distance_km * pricing.perKm);
+    const fare = Math.max(pricing.minFare, Math.round(rawFare * surgeMultiplier / 500) * 500);
 
     return new Response(JSON.stringify({
       distance_km: Math.round(distance_km * 100) / 100,
@@ -58,6 +63,7 @@ Deno.serve(async (req) => {
       surge: surgeMultiplier > 1,
       surge_multiplier: surgeMultiplier,
       currency: "IDR",
+      service_type: sType,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

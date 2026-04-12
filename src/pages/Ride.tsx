@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { MapView } from "@/components/map/MapView";
 import { useRideStore } from "@/stores/rideStore";
+import { ServiceSelector } from "@/components/ride/ServiceSelector";
 import { useAuth } from "@/hooks/useAuth";
 import { useDriverTracking } from "@/hooks/useDriverTracking";
 import { useNavigate } from "react-router-dom";
@@ -22,15 +23,18 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
 export default function Ride() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { pickup, dropoff, pickupAddress, dropoffAddress, fare, rideStatus, setPickup, setDropoff, setFare, setRideStatus, setCurrentRideId, currentRideId, resetRide } = useRideStore();
+  const {
+    pickup, dropoff, pickupAddress, dropoffAddress,
+    fare, rideStatus, serviceType,
+    setPickup, setDropoff, setFare, setRideStatus,
+    setServiceType, setCurrentRideId, currentRideId, resetRide,
+  } = useRideStore();
   const [selectingMode, setSelectingMode] = useState<"pickup" | "dropoff">("pickup");
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
+  const [fareLoading, setFareLoading] = useState(false);
   const nearbyDrivers = useDriverTracking(true);
   const driverMarkers = nearbyDrivers.map((d) => ({
-    id: d.id,
-    name: d.full_name,
-    lat: d.current_lat,
-    lng: d.current_lng,
+    id: d.id, name: d.full_name, lat: d.current_lat, lng: d.current_lng,
   }));
 
   useEffect(() => {
@@ -40,32 +44,44 @@ export default function Ride() {
     }
   }, [user, navigate]);
 
-  // Call calculate-fare edge function when both points are set
+  // When both points set, go to service selection (not fare calc yet)
   useEffect(() => {
+    if (pickup && dropoff && rideStatus === "idle") {
+      setRideStatus("selecting_service");
+    }
+  }, [pickup, dropoff, rideStatus, setRideStatus]);
+
+  // Calculate fare when service type is selected
+  const calculateFare = async (sType: string) => {
     if (!pickup || !dropoff) return;
-    const calculateFare = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke("calculate-fare", {
-          body: {
-            pickup_lat: pickup.lat,
-            pickup_lng: pickup.lng,
-            dropoff_lat: dropoff.lat,
-            dropoff_lng: dropoff.lng,
-          },
-        });
-        if (error) throw error;
-        setFare(data.fare);
-        setDistanceKm(data.distance_km);
-        setRideStatus("confirming");
-      } catch (err: any) {
-        console.error("Fare calculation failed:", err);
-        toast.error("Failed to calculate fare");
-      }
-    };
-    calculateFare();
-  }, [pickup, dropoff, setFare, setRideStatus]);
+    setFareLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("calculate-fare", {
+        body: {
+          pickup_lat: pickup.lat, pickup_lng: pickup.lng,
+          dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng,
+          service_type: sType,
+        },
+      });
+      if (error) throw error;
+      setFare(data.fare);
+      setDistanceKm(data.distance_km);
+      setRideStatus("confirming");
+    } catch (err: any) {
+      console.error("Fare calculation failed:", err);
+      toast.error("Failed to calculate fare");
+    } finally {
+      setFareLoading(false);
+    }
+  };
+
+  const handleServiceSelect = (type: typeof serviceType) => {
+    setServiceType(type);
+    calculateFare(type);
+  };
 
   const handleMapClick = async (lat: number, lng: number) => {
+    if (rideStatus !== "idle" && rideStatus !== "selecting_service") return;
     const address = await reverseGeocode(lat, lng);
     if (selectingMode === "pickup") {
       setPickup({ lat, lng }, address);
@@ -79,31 +95,23 @@ export default function Ride() {
     if (!user || !pickup || !dropoff || !fare) return;
     setRideStatus("searching");
     try {
-      // Insert ride into database
       const { data: ride, error: insertErr } = await supabase.from("rides").insert({
         rider_id: user.id,
-        pickup_lat: pickup.lat,
-        pickup_lng: pickup.lng,
-        pickup_address: pickupAddress,
-        dropoff_lat: dropoff.lat,
-        dropoff_lng: dropoff.lng,
-        dropoff_address: dropoffAddress,
-        fare,
-        distance_km: distanceKm,
-        status: "pending",
+        pickup_lat: pickup.lat, pickup_lng: pickup.lng, pickup_address: pickupAddress,
+        dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng, dropoff_address: dropoffAddress,
+        fare, distance_km: distanceKm, status: "pending",
+        service_type: serviceType,
       }).select().single();
 
       if (insertErr) throw insertErr;
       setCurrentRideId(ride.id);
 
-      // Call dispatch-driver edge function
       const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke("dispatch-driver", {
         body: { ride_id: ride.id },
       });
 
       if (dispatchErr || dispatchData?.error) {
         toast.info("No drivers available right now. We'll keep searching.");
-        // Stay in searching state, could set up realtime listener
       } else {
         setRideStatus("accepted");
         toast.success("Driver found! On the way.");
@@ -115,34 +123,22 @@ export default function Ride() {
     }
   };
 
-  // Subscribe to ride status changes via realtime
+  // Realtime ride status
   useEffect(() => {
     if (!currentRideId) return;
     const channel = supabase
       .channel(`ride-${currentRideId}`)
       .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "rides",
+        event: "UPDATE", schema: "public", table: "rides",
         filter: `id=eq.${currentRideId}`,
       }, (payload) => {
         const newStatus = payload.new.status as string;
-        if (newStatus === "accepted") {
-          setRideStatus("accepted");
-          toast.success("Driver found! On the way.");
-        } else if (newStatus === "in_progress") {
-          setRideStatus("in_progress");
-          toast.info("Your ride has started!");
-        } else if (newStatus === "completed") {
-          setRideStatus("completed");
-          toast.success("Ride completed! Thank you.");
-        } else if (newStatus === "cancelled") {
-          setRideStatus("cancelled");
-          toast.error("Ride was cancelled.");
-        }
+        if (newStatus === "accepted") { setRideStatus("accepted"); toast.success("Driver found! On the way."); }
+        else if (newStatus === "in_progress") { setRideStatus("in_progress"); toast.info("Your ride has started!"); }
+        else if (newStatus === "completed") { setRideStatus("completed"); toast.success("Ride completed! Thank you."); }
+        else if (newStatus === "cancelled") { setRideStatus("cancelled"); toast.error("Ride was cancelled."); }
       })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [currentRideId, setRideStatus]);
 
@@ -181,29 +177,45 @@ export default function Ride() {
         </div>
       )}
 
-      {/* Bottom panel - Confirming */}
+      {/* Service selection panel */}
+      {rideStatus === "selecting_service" && (
+        <div className="absolute bottom-20 left-4 right-4 z-10 animate-slide-up">
+          <div className="bg-card rounded-2xl p-5 shadow-xl border border-border">
+            <div className="flex justify-between items-center mb-3">
+              <div />
+              <button onClick={resetRide} className="text-muted-foreground"><X className="w-5 h-5" /></button>
+            </div>
+            <ServiceSelector selected={serviceType} onSelect={handleServiceSelect} loading={fareLoading} />
+            {fareLoading && (
+              <div className="flex items-center justify-center gap-2 mt-3 text-sm text-muted-foreground">
+                <Loader2 className="w-4 h-4 animate-spin" /> Calculating fare...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Confirming panel */}
       {rideStatus === "confirming" && fare && (
         <div className="absolute bottom-20 left-4 right-4 z-10 animate-slide-up">
           <div className="bg-card rounded-2xl p-5 shadow-xl border border-border">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg">Ride Summary</h3>
-              <button onClick={resetRide} className="text-muted-foreground">
-                <X className="w-5 h-5" />
-              </button>
+              <button onClick={resetRide} className="text-muted-foreground"><X className="w-5 h-5" /></button>
             </div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2 mb-2 text-xs text-muted-foreground">
+              <span className="capitalize">{serviceType.replace("_", " ")}</span>
+              {distanceKm && <span>• {distanceKm.toFixed(1)} km</span>}
+            </div>
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" />
                 <span className="text-2xl font-extrabold">Rp {fare.toLocaleString("id-ID")}</span>
               </div>
-              <span className="text-xs text-muted-foreground">Estimated fare</span>
+              <button onClick={() => setRideStatus("selecting_service")} className="text-xs text-primary underline">Change service</button>
             </div>
-            {distanceKm && (
-              <p className="text-xs text-muted-foreground mb-4">{distanceKm.toFixed(1)} km</p>
-            )}
             <Button className="w-full gradient-primary text-primary-foreground font-bold" size="lg" onClick={handleRequestRide}>
-              <Navigation className="w-4 h-4 mr-2" />
-              Request Ride
+              <Navigation className="w-4 h-4 mr-2" /> Request Ride
             </Button>
           </div>
         </div>
@@ -231,9 +243,7 @@ export default function Ride() {
                 <p className="text-xs text-muted-foreground">Arriving soon</p>
               </div>
             </div>
-            <Button variant="outline" className="w-full" onClick={resetRide}>
-              Cancel Ride
-            </Button>
+            <Button variant="outline" className="w-full" onClick={resetRide}>Cancel Ride</Button>
           </div>
         </div>
       )}

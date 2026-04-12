@@ -44,17 +44,19 @@ export default function AdminRides() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-muted-foreground">
-                    <th className="pb-2 font-medium">Date</th>
-                    <th className="pb-2 font-medium">Route</th>
-                    <th className="pb-2 font-medium">Fare</th>
-                    <th className="pb-2 font-medium">Status</th>
+                     <th className="pb-2 font-medium">Date</th>
+                     <th className="pb-2 font-medium">Service</th>
+                     <th className="pb-2 font-medium">Route</th>
+                     <th className="pb-2 font-medium">Fare</th>
+                     <th className="pb-2 font-medium">Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rides.map((r) => (
                     <tr key={r.id} className="border-b border-border/50">
                       <td className="py-3 text-xs text-muted-foreground">{format(new Date(r.created_at), "dd MMM HH:mm")}</td>
-                      <td className="py-3 text-xs truncate max-w-[200px]">{r.pickup_address ?? "—"} → {r.dropoff_address ?? "—"}</td>
+                       <td className="py-3"><Badge variant="secondary" className="text-[10px]">{(r as any).service_type?.replace("_", " ") ?? "car"}</Badge></td>
+                       <td className="py-3 text-xs truncate max-w-[200px]">{r.pickup_address ?? "—"} → {r.dropoff_address ?? "—"}</td>
                       <td className="py-3 font-semibold">Rp {(r.fare ?? 0).toLocaleString("id-ID")}</td>
                       <td className="py-3">
                         <Badge variant="outline" className={statusColor[r.status] ?? ""}>{r.status.replace("_", " ")}</Badge>

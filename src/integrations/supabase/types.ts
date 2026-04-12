@@ -56,6 +56,215 @@ export type Database = {
         }
         Relationships: []
       }
+      hotel_bookings: {
+        Row: {
+          booking_ref: string
+          check_in: string
+          check_out: string
+          created_at: string
+          guest_name: string | null
+          guest_phone: string | null
+          guests: number
+          hotel_id: string
+          id: string
+          room_id: string
+          special_requests: string | null
+          status: Database["public"]["Enums"]["hotel_booking_status"]
+          total_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          booking_ref?: string
+          check_in: string
+          check_out: string
+          created_at?: string
+          guest_name?: string | null
+          guest_phone?: string | null
+          guests?: number
+          hotel_id: string
+          id?: string
+          room_id: string
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["hotel_booking_status"]
+          total_price?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          booking_ref?: string
+          check_in?: string
+          check_out?: string
+          created_at?: string
+          guest_name?: string | null
+          guest_phone?: string | null
+          guests?: number
+          hotel_id?: string
+          id?: string
+          room_id?: string
+          special_requests?: string | null
+          status?: Database["public"]["Enums"]["hotel_booking_status"]
+          total_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_bookings_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "hotel_bookings_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "hotel_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotel_rooms: {
+        Row: {
+          active: boolean
+          amenities: string[] | null
+          available_rooms: number
+          created_at: string
+          description: string | null
+          hotel_id: string
+          id: string
+          image_url: string | null
+          max_guests: number
+          name: string
+          price_per_night: number
+          total_rooms: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amenities?: string[] | null
+          available_rooms?: number
+          created_at?: string
+          description?: string | null
+          hotel_id: string
+          id?: string
+          image_url?: string | null
+          max_guests?: number
+          name: string
+          price_per_night?: number
+          total_rooms?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amenities?: string[] | null
+          available_rooms?: number
+          created_at?: string
+          description?: string | null
+          hotel_id?: string
+          id?: string
+          image_url?: string | null
+          max_guests?: number
+          name?: string
+          price_per_night?: number
+          total_rooms?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hotel_rooms_hotel_id_fkey"
+            columns: ["hotel_id"]
+            isOneToOne: false
+            referencedRelation: "hotels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hotels: {
+        Row: {
+          active: boolean
+          address: string
+          amenities: string[] | null
+          city: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          lat: number | null
+          lng: number | null
+          name: string
+          rating: number | null
+          star_rating: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address: string
+          amenities?: string[] | null
+          city: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          lat?: number | null
+          lng?: number | null
+          name: string
+          rating?: number | null
+          star_rating?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string
+          amenities?: string[] | null
+          city?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          lat?: number | null
+          lng?: number | null
+          name?: string
+          rating?: number | null
+          star_rating?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payment_settings: {
+        Row: {
+          commission_rate: number
+          config: Json
+          created_at: string
+          gateway: string
+          id: string
+          is_active: boolean
+          is_default: boolean
+          updated_at: string
+        }
+        Insert: {
+          commission_rate?: number
+          config?: Json
+          created_at?: string
+          gateway: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          updated_at?: string
+        }
+        Update: {
+          commission_rate?: number
+          config?: Json
+          created_at?: string
+          gateway?: string
+          id?: string
+          is_active?: boolean
+          is_default?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -100,6 +309,7 @@ export type Database = {
           pickup_lat: number
           pickup_lng: number
           rider_id: string
+          service_type: Database["public"]["Enums"]["ride_service_type"]
           status: Database["public"]["Enums"]["ride_status"]
           updated_at: string
         }
@@ -116,6 +326,7 @@ export type Database = {
           pickup_lat: number
           pickup_lng: number
           rider_id: string
+          service_type?: Database["public"]["Enums"]["ride_service_type"]
           status?: Database["public"]["Enums"]["ride_status"]
           updated_at?: string
         }
@@ -132,6 +343,7 @@ export type Database = {
           pickup_lat?: number
           pickup_lng?: number
           rider_id?: string
+          service_type?: Database["public"]["Enums"]["ride_service_type"]
           status?: Database["public"]["Enums"]["ride_status"]
           updated_at?: string
         }
@@ -152,6 +364,10 @@ export type Database = {
           guest_name: string | null
           guest_phone: string | null
           id: string
+          payment_method: string | null
+          payment_status: string
+          pickup_point_id: string | null
+          rayon_id: string | null
           schedule_id: string
           seat_count: number
           status: Database["public"]["Enums"]["booking_status"]
@@ -165,6 +381,10 @@ export type Database = {
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string
+          pickup_point_id?: string | null
+          rayon_id?: string | null
           schedule_id: string
           seat_count?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -178,6 +398,10 @@ export type Database = {
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
+          payment_method?: string | null
+          payment_status?: string
+          pickup_point_id?: string | null
+          rayon_id?: string | null
           schedule_id?: string
           seat_count?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -187,6 +411,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "shuttle_bookings_pickup_point_id_fkey"
+            columns: ["pickup_point_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_pickup_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_bookings_rayon_id_fkey"
+            columns: ["rayon_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_rayons"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "shuttle_bookings_schedule_id_fkey"
             columns: ["schedule_id"]
             isOneToOne: false
@@ -194,6 +432,80 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shuttle_pickup_points: {
+        Row: {
+          active: boolean
+          created_at: string
+          departure_time: string | null
+          distance_meters: number
+          fare: number
+          id: string
+          name: string
+          rayon_id: string
+          stop_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          departure_time?: string | null
+          distance_meters?: number
+          fare?: number
+          id?: string
+          name: string
+          rayon_id: string
+          stop_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          departure_time?: string | null
+          distance_meters?: number
+          fare?: number
+          id?: string
+          name?: string
+          rayon_id?: string
+          stop_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_pickup_points_rayon_id_fkey"
+            columns: ["rayon_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_rayons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_rayons: {
+        Row: {
+          active: boolean
+          created_at: string
+          description: string | null
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       shuttle_routes: {
         Row: {
@@ -350,6 +662,83 @@ export type Database = {
           },
         ]
       }
+      wallet_transactions: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          gateway_transaction_id: string | null
+          id: string
+          payment_gateway: string | null
+          reference_id: string | null
+          status: Database["public"]["Enums"]["transaction_status"]
+          type: Database["public"]["Enums"]["transaction_type"]
+          wallet_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          gateway_transaction_id?: string | null
+          id?: string
+          payment_gateway?: string | null
+          reference_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          type: Database["public"]["Enums"]["transaction_type"]
+          wallet_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          gateway_transaction_id?: string | null
+          id?: string
+          payment_gateway?: string | null
+          reference_id?: string | null
+          status?: Database["public"]["Enums"]["transaction_status"]
+          type?: Database["public"]["Enums"]["transaction_type"]
+          wallet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "wallet_transactions_wallet_id_fkey"
+            columns: ["wallet_id"]
+            isOneToOne: false
+            referencedRelation: "wallets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      wallets: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          updated_at: string
+          user_id: string
+          wallet_type: Database["public"]["Enums"]["wallet_type"]
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id: string
+          wallet_type?: Database["public"]["Enums"]["wallet_type"]
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+          wallet_type?: Database["public"]["Enums"]["wallet_type"]
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -362,17 +751,41 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_wallet_transaction: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_gateway_transaction_id?: string
+          p_payment_gateway?: string
+          p_reference_id?: string
+          p_status?: Database["public"]["Enums"]["transaction_status"]
+          p_type: Database["public"]["Enums"]["transaction_type"]
+          p_wallet_id: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
       booking_status: "confirmed" | "cancelled" | "completed"
       driver_status: "available" | "busy" | "offline"
+      hotel_booking_status: "pending" | "confirmed" | "cancelled" | "completed"
+      ride_service_type: "bike" | "bike_women" | "car"
       ride_status:
         | "pending"
         | "accepted"
         | "in_progress"
         | "completed"
         | "cancelled"
+      transaction_status: "pending" | "completed" | "failed"
+      transaction_type:
+        | "top_up"
+        | "ride_payment"
+        | "ride_earning"
+        | "withdrawal"
+        | "refund"
+        | "admin_adjustment"
+      wallet_type: "user" | "driver"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -503,6 +916,8 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       booking_status: ["confirmed", "cancelled", "completed"],
       driver_status: ["available", "busy", "offline"],
+      hotel_booking_status: ["pending", "confirmed", "cancelled", "completed"],
+      ride_service_type: ["bike", "bike_women", "car"],
       ride_status: [
         "pending",
         "accepted",
@@ -510,6 +925,16 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      transaction_status: ["pending", "completed", "failed"],
+      transaction_type: [
+        "top_up",
+        "ride_payment",
+        "ride_earning",
+        "withdrawal",
+        "refund",
+        "admin_adjustment",
+      ],
+      wallet_type: ["user", "driver"],
     },
   },
 } as const

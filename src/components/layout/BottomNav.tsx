@@ -1,4 +1,4 @@
-import { Home, Car, Bus, User } from "lucide-react";
+import { Home, Car, Bus, Building2, Wallet, User } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
@@ -6,13 +6,14 @@ const navItems = [
   { to: "/", icon: Home, label: "Home" },
   { to: "/ride", icon: Car, label: "Ride" },
   { to: "/shuttle", icon: Bus, label: "Shuttle" },
+  { to: "/hotel", icon: Building2, label: "Hotel" },
+  { to: "/wallet", icon: Wallet, label: "Wallet" },
   { to: "/profile", icon: User, label: "Profile" },
 ];
 
 export function BottomNav() {
   const location = useLocation();
 
-  // Hide on admin routes
   if (location.pathname.startsWith("/admin")) return null;
 
   return (
@@ -25,7 +26,7 @@ export function BottomNav() {
               key={to}
               to={to}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 w-16 h-full transition-colors",
+                "flex flex-col items-center justify-center gap-0.5 w-14 h-full transition-colors",
                 isActive ? "text-primary" : "text-muted-foreground"
               )}
             >

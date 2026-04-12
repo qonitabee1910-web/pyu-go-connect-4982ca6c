@@ -1,13 +1,15 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Car, Bus, Users, UserCog, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Car, Bus, Users, UserCog, CreditCard, Building2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const adminNav = [
   { to: "/admin", icon: LayoutDashboard, label: "Overview", end: true },
   { to: "/admin/rides", icon: Car, label: "Rides" },
   { to: "/admin/shuttles", icon: Bus, label: "Shuttles" },
+  { to: "/admin/hotels", icon: Building2, label: "Hotels" },
   { to: "/admin/drivers", icon: UserCog, label: "Drivers" },
   { to: "/admin/users", icon: Users, label: "Users" },
+  { to: "/admin/payments", icon: CreditCard, label: "Payments" },
 ];
 
 export default function AdminLayout() {

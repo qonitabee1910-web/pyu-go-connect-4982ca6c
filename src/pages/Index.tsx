@@ -1,5 +1,5 @@
 import { useNavigate } from "react-router-dom";
-import { Car, Bus, MapPin, Clock } from "lucide-react";
+import { Car, Bus, Building2, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,9 +47,10 @@ export default function Index() {
 
       {/* Services Grid */}
       <div className="px-6 -mt-2">
-        <div className="grid grid-cols-2 gap-4 mt-6">
-          <ServiceCard icon={<Car className="w-7 h-7" />} title="Ride" description="On-demand rides" onClick={() => navigate("/ride")} color="text-primary" />
-          <ServiceCard icon={<Bus className="w-7 h-7" />} title="Shuttle" description="Book shuttle seats" onClick={() => navigate("/shuttle")} color="text-secondary" />
+        <div className="grid grid-cols-3 gap-3 mt-6">
+          <ServiceCard icon={<Car className="w-7 h-7" />} title="Ride" description="On-demand" onClick={() => navigate("/ride")} color="text-primary" />
+          <ServiceCard icon={<Bus className="w-7 h-7" />} title="Shuttle" description="Book seats" onClick={() => navigate("/shuttle")} color="text-secondary" />
+          <ServiceCard icon={<Building2 className="w-7 h-7" />} title="Hotel" description="Book rooms" onClick={() => navigate("/hotel")} color="text-accent-foreground" />
         </div>
       </div>
 
