@@ -4,8 +4,9 @@ import { useRideStore } from "@/stores/rideStore";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { MapPin, Navigation, DollarSign, X } from "lucide-react";
+import { MapPin, Navigation, DollarSign, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 async function reverseGeocode(lat: number, lng: number): Promise<string> {
   try {
@@ -17,25 +18,12 @@ async function reverseGeocode(lat: number, lng: number): Promise<string> {
   }
 }
 
-function estimateFare(pickup: { lat: number; lng: number }, dropoff: { lat: number; lng: number }): number {
-  const R = 6371;
-  const dLat = ((dropoff.lat - pickup.lat) * Math.PI) / 180;
-  const dLon = ((dropoff.lng - pickup.lng) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((pickup.lat * Math.PI) / 180) * Math.cos((dropoff.lat * Math.PI) / 180) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distKm = R * c;
-  const baseFare = 5000;
-  const perKm = 3000;
-  return Math.round((baseFare + distKm * perKm) / 500) * 500;
-}
-
 export default function Ride() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { pickup, dropoff, pickupAddress, dropoffAddress, fare, rideStatus, setPickup, setDropoff, setFare, setRideStatus, resetRide } = useRideStore();
+  const { pickup, dropoff, pickupAddress, dropoffAddress, fare, rideStatus, setPickup, setDropoff, setFare, setRideStatus, setCurrentRideId, currentRideId, resetRide } = useRideStore();
   const [selectingMode, setSelectingMode] = useState<"pickup" | "dropoff">("pickup");
+  const [distanceKm, setDistanceKm] = useState<number | null>(null);
 
   useEffect(() => {
     if (!user) {
@@ -44,11 +32,29 @@ export default function Ride() {
     }
   }, [user, navigate]);
 
+  // Call calculate-fare edge function when both points are set
   useEffect(() => {
-    if (pickup && dropoff) {
-      setFare(estimateFare(pickup, dropoff));
-      setRideStatus("confirming");
-    }
+    if (!pickup || !dropoff) return;
+    const calculateFare = async () => {
+      try {
+        const { data, error } = await supabase.functions.invoke("calculate-fare", {
+          body: {
+            pickup_lat: pickup.lat,
+            pickup_lng: pickup.lng,
+            dropoff_lat: dropoff.lat,
+            dropoff_lng: dropoff.lng,
+          },
+        });
+        if (error) throw error;
+        setFare(data.fare);
+        setDistanceKm(data.distance_km);
+        setRideStatus("confirming");
+      } catch (err: any) {
+        console.error("Fare calculation failed:", err);
+        toast.error("Failed to calculate fare");
+      }
+    };
+    calculateFare();
   }, [pickup, dropoff, setFare, setRideStatus]);
 
   const handleMapClick = async (lat: number, lng: number) => {
@@ -61,20 +67,81 @@ export default function Ride() {
     }
   };
 
-  const handleRequestRide = () => {
+  const handleRequestRide = async () => {
+    if (!user || !pickup || !dropoff || !fare) return;
     setRideStatus("searching");
-    // Simulate finding a driver
-    setTimeout(() => {
-      setRideStatus("accepted");
-      toast.success("Driver found! On the way.");
-    }, 3000);
+    try {
+      // Insert ride into database
+      const { data: ride, error: insertErr } = await supabase.from("rides").insert({
+        rider_id: user.id,
+        pickup_lat: pickup.lat,
+        pickup_lng: pickup.lng,
+        pickup_address: pickupAddress,
+        dropoff_lat: dropoff.lat,
+        dropoff_lng: dropoff.lng,
+        dropoff_address: dropoffAddress,
+        fare,
+        distance_km: distanceKm,
+        status: "pending",
+      }).select().single();
+
+      if (insertErr) throw insertErr;
+      setCurrentRideId(ride.id);
+
+      // Call dispatch-driver edge function
+      const { data: dispatchData, error: dispatchErr } = await supabase.functions.invoke("dispatch-driver", {
+        body: { ride_id: ride.id },
+      });
+
+      if (dispatchErr || dispatchData?.error) {
+        toast.info("No drivers available right now. We'll keep searching.");
+        // Stay in searching state, could set up realtime listener
+      } else {
+        setRideStatus("accepted");
+        toast.success("Driver found! On the way.");
+      }
+    } catch (err: any) {
+      console.error("Ride request failed:", err);
+      toast.error("Failed to request ride: " + err.message);
+      setRideStatus("confirming");
+    }
   };
+
+  // Subscribe to ride status changes via realtime
+  useEffect(() => {
+    if (!currentRideId) return;
+    const channel = supabase
+      .channel(`ride-${currentRideId}`)
+      .on("postgres_changes", {
+        event: "UPDATE",
+        schema: "public",
+        table: "rides",
+        filter: `id=eq.${currentRideId}`,
+      }, (payload) => {
+        const newStatus = payload.new.status as string;
+        if (newStatus === "accepted") {
+          setRideStatus("accepted");
+          toast.success("Driver found! On the way.");
+        } else if (newStatus === "in_progress") {
+          setRideStatus("in_progress");
+          toast.info("Your ride has started!");
+        } else if (newStatus === "completed") {
+          setRideStatus("completed");
+          toast.success("Ride completed! Thank you.");
+        } else if (newStatus === "cancelled") {
+          setRideStatus("cancelled");
+          toast.error("Ride was cancelled.");
+        }
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentRideId, setRideStatus]);
 
   if (!user) return null;
 
   return (
     <div className="relative h-screen">
-      {/* Map */}
       <MapView pickup={pickup} dropoff={dropoff} onMapClick={handleMapClick} className="w-full h-full" />
 
       {/* Top bar overlay */}
@@ -106,7 +173,7 @@ export default function Ride() {
         </div>
       )}
 
-      {/* Bottom panel */}
+      {/* Bottom panel - Confirming */}
       {rideStatus === "confirming" && fare && (
         <div className="absolute bottom-20 left-4 right-4 z-10 animate-slide-up">
           <div className="bg-card rounded-2xl p-5 shadow-xl border border-border">
@@ -116,13 +183,16 @@ export default function Ride() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <DollarSign className="w-5 h-5 text-primary" />
                 <span className="text-2xl font-extrabold">Rp {fare.toLocaleString("id-ID")}</span>
               </div>
               <span className="text-xs text-muted-foreground">Estimated fare</span>
             </div>
+            {distanceKm && (
+              <p className="text-xs text-muted-foreground mb-4">{distanceKm.toFixed(1)} km</p>
+            )}
             <Button className="w-full gradient-primary text-primary-foreground font-bold" size="lg" onClick={handleRequestRide}>
               <Navigation className="w-4 h-4 mr-2" />
               Request Ride
@@ -134,7 +204,7 @@ export default function Ride() {
       {rideStatus === "searching" && (
         <div className="absolute bottom-20 left-4 right-4 z-10 animate-slide-up">
           <div className="bg-card rounded-2xl p-6 shadow-xl border border-border text-center">
-            <div className="w-12 h-12 rounded-full gradient-primary mx-auto mb-3 animate-pulse" />
+            <Loader2 className="w-12 h-12 mx-auto mb-3 text-primary animate-spin" />
             <p className="font-bold">Finding your driver...</p>
             <p className="text-sm text-muted-foreground mt-1">Please wait</p>
           </div>
@@ -150,7 +220,7 @@ export default function Ride() {
               </div>
               <div>
                 <p className="font-bold">Driver is on the way!</p>
-                <p className="text-xs text-muted-foreground">Arriving in ~5 min</p>
+                <p className="text-xs text-muted-foreground">Arriving soon</p>
               </div>
             </div>
             <Button variant="outline" className="w-full" onClick={resetRide}>

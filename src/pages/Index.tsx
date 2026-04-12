@@ -1,11 +1,28 @@
 import { useNavigate } from "react-router-dom";
-import { Car, Bus, MapPin, Shield } from "lucide-react";
+import { Car, Bus, MapPin, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
+import { format } from "date-fns";
 
 export default function Index() {
   const navigate = useNavigate();
   const { user } = useAuth();
+
+  const { data: recentRides } = useQuery({
+    queryKey: ["recent-rides", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("rides")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(3);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user,
+  });
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -19,7 +36,6 @@ export default function Index() {
           {user ? `Welcome back, ${user.user_metadata?.full_name ?? "rider"}!` : "Your super app for rides & shuttles"}
         </p>
 
-        {/* Quick search bar */}
         <button
           onClick={() => navigate("/ride")}
           className="w-full flex items-center gap-3 bg-card/90 backdrop-blur rounded-xl px-4 py-3 shadow-lg text-left"
@@ -32,30 +48,35 @@ export default function Index() {
       {/* Services Grid */}
       <div className="px-6 -mt-2">
         <div className="grid grid-cols-2 gap-4 mt-6">
-          <ServiceCard
-            icon={<Car className="w-7 h-7" />}
-            title="Ride"
-            description="On-demand rides"
-            onClick={() => navigate("/ride")}
-            color="text-primary"
-          />
-          <ServiceCard
-            icon={<Bus className="w-7 h-7" />}
-            title="Shuttle"
-            description="Book shuttle seats"
-            onClick={() => navigate("/shuttle")}
-            color="text-secondary"
-          />
+          <ServiceCard icon={<Car className="w-7 h-7" />} title="Ride" description="On-demand rides" onClick={() => navigate("/ride")} color="text-primary" />
+          <ServiceCard icon={<Bus className="w-7 h-7" />} title="Shuttle" description="Book shuttle seats" onClick={() => navigate("/shuttle")} color="text-secondary" />
         </div>
       </div>
 
-      {/* Recent Activity placeholder */}
+      {/* Recent Activity */}
       <div className="px-6 mt-8 flex-1">
         <h2 className="text-lg font-bold mb-3">Recent Activity</h2>
-        <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-          <Shield className="w-10 h-10 mb-2 opacity-40" />
-          <p className="text-sm">No recent activity</p>
-        </div>
+        {(!user || !recentRides || recentRides.length === 0) ? (
+          <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
+            <Clock className="w-10 h-10 mb-2 opacity-40" />
+            <p className="text-sm">{user ? "No recent rides" : "Sign in to see activity"}</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {recentRides.map((ride) => (
+              <div key={ride.id} className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{ride.pickup_address ?? "Pickup"} → {ride.dropoff_address ?? "Dropoff"}</p>
+                  <p className="text-xs text-muted-foreground">{format(new Date(ride.created_at), "dd MMM, HH:mm")}</p>
+                </div>
+                <div className="text-right shrink-0 ml-3">
+                  <p className="text-sm font-bold">Rp {(ride.fare ?? 0).toLocaleString("id-ID")}</p>
+                  <p className="text-xs text-muted-foreground capitalize">{ride.status.replace("_", " ")}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {!user && (
@@ -69,24 +90,9 @@ export default function Index() {
   );
 }
 
-function ServiceCard({
-  icon,
-  title,
-  description,
-  onClick,
-  color,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  onClick: () => void;
-  color: string;
-}) {
+function ServiceCard({ icon, title, description, onClick, color }: { icon: React.ReactNode; title: string; description: string; onClick: () => void; color: string }) {
   return (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-start gap-2 p-5 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
-    >
+    <button onClick={onClick} className="flex flex-col items-start gap-2 p-5 rounded-2xl bg-card border border-border shadow-sm hover:shadow-md transition-all active:scale-[0.98]">
       <div className={color}>{icon}</div>
       <div>
         <p className="font-bold text-sm">{title}</p>
