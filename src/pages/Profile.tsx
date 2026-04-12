@@ -1,7 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { User, LogOut, Shield, ChevronRight, Car, Bus } from "lucide-react";
+import { User, LogOut, Shield, ChevronRight, Car, Bus, Truck } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 
