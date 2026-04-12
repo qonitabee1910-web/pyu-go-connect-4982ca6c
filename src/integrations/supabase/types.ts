@@ -447,7 +447,6 @@ export type Database = {
           description: string | null
           discount_type: Database["public"]["Enums"]["promo_discount_type"]
           discount_value: number
-          image_url: string | null
           end_date: string
           id: string
           is_active: boolean
@@ -467,7 +466,6 @@ export type Database = {
           description?: string | null
           discount_type?: Database["public"]["Enums"]["promo_discount_type"]
           discount_value: number
-          image_url?: string | null
           end_date: string
           id?: string
           is_active?: boolean
@@ -487,7 +485,6 @@ export type Database = {
           description?: string | null
           discount_type?: Database["public"]["Enums"]["promo_discount_type"]
           discount_value?: number
-          image_url?: string | null
           end_date?: string
           id?: string
           is_active?: boolean
@@ -798,47 +795,6 @@ export type Database = {
         }
         Relationships: []
       }
-      shuttle_seats: {
-        Row: {
-          created_at: string
-          id: string
-          reserved_at: string | null
-          reserved_by_session: string | null
-          schedule_id: string
-          seat_number: string
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          reserved_at?: string | null
-          reserved_by_session?: string | null
-          schedule_id: string
-          seat_number: string
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          reserved_at?: string | null
-          reserved_by_session?: string | null
-          schedule_id?: string
-          seat_number?: string
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shuttle_seats_schedule_id_fkey"
-            columns: ["schedule_id"]
-            isOneToOne: false
-            referencedRelation: "shuttle_schedules"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       shuttle_schedules: {
         Row: {
           active: boolean
@@ -902,6 +858,47 @@ export type Database = {
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_seats: {
+        Row: {
+          created_at: string
+          id: string
+          reserved_at: string | null
+          reserved_by_session: string | null
+          schedule_id: string
+          seat_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reserved_at?: string | null
+          reserved_by_session?: string | null
+          schedule_id: string
+          seat_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reserved_at?: string | null
+          reserved_by_session?: string | null
+          schedule_id?: string
+          seat_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_seats_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_schedules"
             referencedColumns: ["id"]
           },
         ]
@@ -1077,6 +1074,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cleanup_expired_seat_reservations: { Args: never; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1085,10 +1083,7 @@ export type Database = {
         Returns: boolean
       }
       increment_ad_metric: {
-        Args: {
-          p_ad_id: string
-          p_type: string
-        }
+        Args: { p_ad_id: string; p_type: string }
         Returns: undefined
       }
       process_wallet_transaction: {
@@ -1104,13 +1099,17 @@ export type Database = {
         }
         Returns: string
       }
+      reserve_shuttle_seats: {
+        Args: {
+          p_schedule_id: string
+          p_seat_numbers: string[]
+          p_session_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      ad_placement:
-        | "dashboard_banner"
-        | "sidebar"
-        | "popup"
-        | "ride_completion"
+      ad_placement: "dashboard_banner" | "sidebar" | "popup" | "ride_completion"
       app_role: "admin" | "moderator" | "user"
       booking_status: "confirmed" | "cancelled" | "completed"
       driver_status: "available" | "busy" | "offline"
@@ -1118,7 +1117,6 @@ export type Database = {
       promo_discount_type: "percentage" | "fixed_amount"
       promo_target_service: "ride" | "shuttle" | "hotel" | "all"
       promo_user_segment: "all" | "new_user" | "loyal_user" | "inactive_user"
-      shuttle_service_category: "Reguler" | "Semi Executive" | "Executive"
       ride_service_type: "bike" | "bike_women" | "car"
       ride_status:
         | "pending"
@@ -1126,6 +1124,7 @@ export type Database = {
         | "in_progress"
         | "completed"
         | "cancelled"
+      shuttle_service_category: "Reguler" | "Semi Executive" | "Executive"
       transaction_status: "pending" | "completed" | "failed"
       transaction_type:
         | "top_up"
@@ -1278,6 +1277,7 @@ export const Constants = {
         "completed",
         "cancelled",
       ],
+      shuttle_service_category: ["Reguler", "Semi Executive", "Executive"],
       transaction_status: ["pending", "completed", "failed"],
       transaction_type: [
         "top_up",
