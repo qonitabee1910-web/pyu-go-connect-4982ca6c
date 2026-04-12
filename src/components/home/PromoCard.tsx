@@ -44,18 +44,9 @@ export function PromoCard({ promo, onClick, className }: PromoCardProps) {
     >
       <CardContent className="p-0">
         <div className="relative aspect-[16/9] overflow-hidden">
-          {promo.image_url ? (
-            <img 
-              src={promo.image_url} 
-              alt={promo.title} 
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
-              <Tag className="w-12 h-12 text-primary/40 group-hover:scale-110 transition-transform duration-500" />
-            </div>
-          )}
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/20 to-secondary/20 flex items-center justify-center">
+            <Tag className="w-12 h-12 text-primary/40 group-hover:scale-110 transition-transform duration-500" />
+          </div>
           
           <div className="absolute top-3 left-3">
             <Badge className="bg-primary text-primary-foreground font-bold px-3 py-1 shadow-lg">

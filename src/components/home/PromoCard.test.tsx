@@ -19,7 +19,7 @@ const mockPromo: Tables<"promos"> = {
   target_service: "ride",
   target_user_segment: "all",
   is_active: true,
-  image_url: null,
+  
   created_at: "2026-01-01T00:00:00Z",
   updated_at: "2026-01-01T00:00:00Z",
 };
