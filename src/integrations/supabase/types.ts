@@ -565,6 +565,42 @@ export type Database = {
           },
         ]
       }
+      shuttle_booking_seats: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          seat_id: string
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          seat_id: string
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          seat_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_booking_seats_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_booking_seats_seat_id_fkey"
+            columns: ["seat_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_seats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shuttle_bookings: {
         Row: {
           booking_ref: string
@@ -761,6 +797,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      shuttle_seats: {
+        Row: {
+          created_at: string
+          id: string
+          reserved_at: string | null
+          reserved_by_session: string | null
+          schedule_id: string
+          seat_number: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          reserved_at?: string | null
+          reserved_by_session?: string | null
+          schedule_id: string
+          seat_number: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          reserved_at?: string | null
+          reserved_by_session?: string | null
+          schedule_id?: string
+          seat_number?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_seats_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shuttle_schedules: {
         Row: {

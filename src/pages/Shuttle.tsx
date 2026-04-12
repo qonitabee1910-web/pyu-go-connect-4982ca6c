@@ -16,6 +16,7 @@ import { format, isSameDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import ShuttleTicket from "@/components/shuttle/ShuttleTicket";
+import { SeatLayout, SeatInfo } from "@/components/shuttle/SeatLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type Step = "routes" | "date" | "schedule" | "pickup" | "seats" | "guest_info" | "payment" | "confirmation";
@@ -33,7 +34,7 @@ export default function Shuttle() {
   const [selectedScheduleDeparture, setSelectedScheduleDeparture] = useState("");
   const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
   const [selectedRayonId, setSelectedRayonId] = useState<string | null>(null);
-  const [seatCount, setSeatCount] = useState(1);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
   const [guestPhone, setGuestPhone] = useState("");
   const [bookingRef, setBookingRef] = useState("");
@@ -46,13 +47,14 @@ export default function Shuttle() {
   const { data: routes, isLoading } = useQuery({
     queryKey: ["shuttle-routes"],
     queryFn: async () => {
-      const { data: routesData, error: rErr } = await supabase.from("shuttle_routes").select("*").eq("active", true);
+      const { data: routesData, error: rErr } = await (supabase as any).from("shuttle_routes").select("*").eq("active", true);
       if (rErr) throw rErr;
-      const { data: schedulesData, error: sErr } = await supabase.from("shuttle_schedules").select("*").eq("active", true).gte("departure_time", new Date().toISOString());
+      const { data: schedulesData, error: sErr } = await (supabase as any).from("shuttle_schedules").select("*").eq("active", true).gte("departure_time", new Date().toISOString());
       if (sErr) throw sErr;
-      return routesData.map((route) => ({
-        ...route,
-        schedules: (schedulesData || []).filter((s) => s.route_id === route.id),
+      
+      return (routesData || []).map((r: any) => ({
+        ...r,
+        schedules: (schedulesData || []).filter((s: any) => s.route_id === r.id),
       }));
     },
   });
@@ -61,15 +63,15 @@ export default function Shuttle() {
     queryKey: ["shuttle-rayons", selectedRouteId],
     queryFn: async () => {
       if (!selectedRouteId) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("shuttle_rayons")
         .select("*")
         .eq("active", true)
         .eq("route_id", selectedRouteId)
         .order("name");
       if (error) throw error;
-      const { data: points } = await supabase.from("shuttle_pickup_points").select("*").eq("active", true).order("stop_order");
-      return data.map((r) => ({ ...r, pickup_points: (points ?? []).filter((p) => p.rayon_id === r.id) }));
+      const { data: points } = await (supabase as any).from("shuttle_pickup_points").select("*").eq("active", true).order("stop_order");
+      return data.map((r: any) => ({ ...r, pickup_points: (points || []).filter((p: any) => p.rayon_id === r.id) }));
     },
     enabled: !!selectedRouteId,
   });
@@ -78,15 +80,30 @@ export default function Shuttle() {
     queryKey: ["user-shuttle-bookings", user?.id],
     queryFn: async () => {
       if (!user) return [];
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("shuttle_bookings")
-        .select("*, shuttle_schedules!inner(departure_time, route_id, shuttle_routes:route_id(name, origin, destination)), shuttle_pickup_points(name)")
+        .select("*, shuttle_schedules!inner(departure_time, route_id, shuttle_routes:route_id(name, origin, destination)), shuttle_pickup_points(name), shuttle_booking_seats(shuttle_seats(seat_number))")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
     enabled: !!user,
+  });
+
+  const { data: scheduleSeats, refetch: refetchSeats } = useQuery({
+    queryKey: ["schedule-seats", selectedScheduleId],
+    queryFn: async () => {
+      if (!selectedScheduleId) return [];
+      const { data, error } = await (supabase as any)
+        .from("shuttle_seats")
+        .select("*")
+        .eq("schedule_id", selectedScheduleId)
+        .order("seat_number");
+      if (error) throw error;
+      return data as SeatInfo[];
+    },
+    enabled: !!selectedScheduleId,
   });
 
   const selectedRoute = routes?.find((r) => r.id === selectedRouteId);
@@ -130,19 +147,72 @@ export default function Shuttle() {
     setStep("seats");
   };
 
-  const handleConfirmSeats = () => setStep("guest_info");
+  const handleSeatClick = (seat: any) => {
+    if (selectedSeats.includes(seat.number)) {
+      setSelectedSeats(selectedSeats.filter(s => s !== seat.number));
+    } else {
+      setSelectedSeats([...selectedSeats, seat.number]);
+    }
+  };
+
+  const handleConfirmSeats = async () => {
+    if (selectedSeats.length === 0) {
+      toast.error("Pilih minimal satu kursi");
+      return;
+    }
+    
+    // Seat Locking Mechanism: Mark as reserved in DB
+    try {
+      const { data: currentSeats } = await (supabase as any)
+        .from("shuttle_seats")
+        .select("*")
+        .eq("schedule_id", selectedScheduleId!)
+        .in("seat_number", selectedSeats);
+
+      const isAnyTaken = (currentSeats as any[])?.some((s: any) => s.status !== "available");
+      if (isAnyTaken) {
+        toast.error("Maaf, satu atau lebih kursi sudah dipesan/terkunci. Silakan pilih kursi lain.");
+        refetchSeats();
+        return;
+      }
+
+      // Lock seats
+      const { error } = await (supabase as any)
+        .from("shuttle_seats")
+        .update({ 
+          status: "reserved", 
+          reserved_at: new Date().toISOString(),
+          reserved_by_session: user?.id ?? "guest-" + Math.random().toString(36).substr(2, 9)
+        })
+        .eq("schedule_id", selectedScheduleId!)
+        .in("seat_number", selectedSeats);
+
+      if (error) throw error;
+      
+      setStep("guest_info");
+    } catch (err: any) {
+      toast.error("Gagal mengunci kursi: " + err.message);
+    }
+  };
 
   const handleGuestInfoNext = () => {
     if (!guestName || !guestPhone) { toast.error("Masukkan nama dan nomor HP"); return; }
     setStep("payment");
   };
 
-  const totalFare = selectedScheduleFare * seatCount;
+  const totalFare = selectedScheduleFare * selectedSeats.length;
 
   const createBooking = async (pMethod: string, pStatus: string) => {
-    const { data, error } = await supabase.from("shuttle_bookings").insert({
+    // Generate reference number: PYU-YYYYMMDD-XXXXX
+    const dateStr = format(new Date(), "yyyyMMdd");
+    const randStr = Math.random().toString(36).substring(2, 7).toUpperCase();
+    const ref = `PYU-${dateStr}-${randStr}`;
+
+    // Transaction logic for Booking + Seats
+    const { data: bookingData, error: bErr } = await (supabase as any).from("shuttle_bookings").insert({
+      booking_ref: ref,
       schedule_id: selectedScheduleId!,
-      seat_count: seatCount,
+      seat_count: selectedSeats.length,
       total_fare: totalFare,
       guest_name: guestName,
       guest_phone: guestPhone,
@@ -151,9 +221,31 @@ export default function Shuttle() {
       payment_status: pStatus,
       rayon_id: selectedRayonId,
       pickup_point_id: selectedPickupPoint?.id ?? null,
-    } as any).select("booking_ref, id").single();
-    if (error) throw error;
-    return data;
+      status: "confirmed"
+    }).select("id, booking_ref").single();
+
+    if (bErr) throw bErr;
+
+    // Update seats status to 'booked' and create mapping
+    const { data: seatsData } = await (supabase as any)
+      .from("shuttle_seats")
+      .select("id, seat_number")
+      .eq("schedule_id", selectedScheduleId!)
+      .in("seat_number", selectedSeats);
+
+    if (seatsData && (seatsData as any[]).length > 0) {
+      const seatIds = (seatsData as any[]).map((s: any) => s.id);
+      
+      // Update seats to booked
+      await (supabase as any).from("shuttle_seats").update({ status: "booked" }).in("id", seatIds);
+      
+      // Insert mapping
+      await (supabase as any).from("shuttle_booking_seats").insert(
+        seatIds.map((sid: string) => ({ booking_id: (bookingData as any).id, seat_id: sid }))
+      );
+    }
+
+    return bookingData as any;
   };
 
   const handlePayCash = async () => {
@@ -180,7 +272,7 @@ export default function Shuttle() {
       setBookingRef(bookingData.booking_ref);
       setBookingId(bookingData.id);
       setPaymentMethod(gateway);
-      const { data: payData, error: payErr } = await supabase.functions.invoke("create-shuttle-payment", { body: { booking_id: bookingData.id, gateway } });
+      const { data: payData, error: payErr } = await (supabase as any).functions.invoke("create-shuttle-payment", { body: { booking_id: bookingData.id, gateway } });
       if (payErr) throw payErr;
       if (gateway === "midtrans" && payData?.token) {
         const script = document.createElement("script");
@@ -218,7 +310,7 @@ export default function Shuttle() {
     setSelectedScheduleId(null);
     setSelectedPickupPoint(null);
     setSelectedRayonId(null);
-    setSeatCount(1);
+    setSelectedSeats([]);
     setGuestName("");
     setGuestPhone("");
     setBookingRef("");
@@ -380,33 +472,51 @@ export default function Shuttle() {
 
             {/* SEATS */}
             {step === "seats" && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">Pilih Kursi</CardTitle>
-                  <p className="text-xs text-muted-foreground">
-                    {selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}
-                    {selectedPickupPoint && ` • 📍 ${selectedPickupPoint.name}`}
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <Label>Jumlah kursi</Label>
-                    <div className="flex items-center gap-3">
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSeatCount(Math.max(1, seatCount - 1))}>-</Button>
-                      <span className="font-bold w-6 text-center">{seatCount}</span>
-                      <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setSeatCount(Math.min(selectedScheduleSeats, seatCount + 1))}>+</Button>
+              <div className="space-y-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">Pilih Kursi</CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      {selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}
+                      {selectedPickupPoint && ` • 📍 ${selectedPickupPoint.name}`}
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-0">
+                    <SeatLayout 
+                      vehicleType={
+                        selectedSeats.length > 7 ? "Hiace" : 
+                        (selectedSeats.length > 4 ? "SUV" : "MiniCar") // Simplified logic for demo
+                      }
+                      seats={scheduleSeats || []}
+                      selectedSeats={selectedSeats}
+                      onSeatSelect={handleSeatClick}
+                    />
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Kursi dipilih ({selectedSeats.length})</span>
+                      <span className="font-bold">{selectedSeats.join(", ") || "-"}</span>
                     </div>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total</span>
-                    <span className="font-extrabold text-lg">Rp {totalFare.toLocaleString("id-ID")}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="flex-1" onClick={goBack}>Kembali</Button>
-                    <Button className="flex-1 gradient-primary text-primary-foreground font-bold" onClick={handleConfirmSeats}>Lanjut</Button>
-                  </div>
-                </CardContent>
-              </Card>
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-muted-foreground">Total Biaya</span>
+                      <span className="font-extrabold text-lg text-primary">Rp {totalFare.toLocaleString("id-ID")}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="flex-1" onClick={goBack}>Kembali</Button>
+                      <Button 
+                        className="flex-1 gradient-primary text-primary-foreground font-bold" 
+                        onClick={handleConfirmSeats}
+                        disabled={selectedSeats.length === 0}
+                      >
+                        Lanjut
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             )}
 
             {/* GUEST INFO */}
@@ -438,7 +548,7 @@ export default function Shuttle() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">Pembayaran</CardTitle>
-                  <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {seatCount} kursi • Rp {totalFare.toLocaleString("id-ID")}</p>
+                  <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {selectedSeats.length} kursi • Rp {totalFare.toLocaleString("id-ID")}</p>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <button onClick={handlePayCash} disabled={booking || processingPayment}
@@ -471,7 +581,7 @@ export default function Shuttle() {
                   origin={selectedRoute?.origin ?? ""}
                   destination={selectedRoute?.destination ?? ""}
                   departure={format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}
-                  seatCount={seatCount}
+                  seatCount={selectedSeats.length}
                   guestName={guestName}
                   guestPhone={guestPhone}
                   totalFare={totalFare}
@@ -509,6 +619,11 @@ export default function Shuttle() {
                       </p>
                       {b.shuttle_pickup_points?.name && (
                         <p className="text-xs text-muted-foreground mt-1">📍 {b.shuttle_pickup_points.name}</p>
+                      )}
+                      {b.shuttle_booking_seats && b.shuttle_booking_seats.length > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-0.5">
+                          Kursi: {b.shuttle_booking_seats.map((s: any) => s.shuttle_seats?.seat_number).join(", ")}
+                        </p>
                       )}
                     </div>
                     <div className="text-right">
