@@ -54,23 +54,43 @@ Deno.serve(async (req) => {
     }
 
     // Find available drivers with location
-    const { data: drivers } = await supabase
+    // Filter by verification, and gender if service_type is bike_women
+    let driverQuery = supabase
       .from("drivers")
-      .select("*")
+      .select("*, vehicles!current_vehicle_id(*)")
       .eq("status", "available")
+      .eq("is_verified", true)
       .not("current_lat", "is", null)
       .not("current_lng", "is", null);
 
-    if (!drivers || drivers.length === 0) {
+    if (ride.service_type === "bike_women") {
+      driverQuery = driverQuery.eq("gender", "female");
+    }
+
+    const { data: drivers, error: driverErr } = await driverQuery;
+
+    if (driverErr || !drivers || drivers.length === 0) {
       return new Response(JSON.stringify({ error: "No available drivers", assigned: false }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Find nearest driver
-    let nearest = drivers[0];
+    // Filter drivers by vehicle_type (bike for bike/bike_women, car for car)
+    const requiredVehicleType = ride.service_type === "car" ? "car" : "bike";
+    const compatibleDrivers = drivers.filter((d: any) => 
+      d.vehicles && d.vehicles.vehicle_type === requiredVehicleType
+    );
+
+    if (compatibleDrivers.length === 0) {
+      return new Response(JSON.stringify({ error: `No compatible ${requiredVehicleType} drivers available`, assigned: false }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Find nearest compatible driver
+    let nearest = compatibleDrivers[0];
     let minDist = Infinity;
-    for (const d of drivers) {
+    for (const d of compatibleDrivers) {
       const dist = haversineKm(ride.pickup_lat, ride.pickup_lng, d.current_lat!, d.current_lng!);
       if (dist < minDist) {
         minDist = dist;

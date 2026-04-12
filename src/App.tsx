@@ -25,10 +25,15 @@ import AdminHotels from "./pages/admin/AdminHotels";
 import DriverLayout from "./pages/driver/DriverLayout";
 import DriverDashboard from "./pages/driver/DriverDashboard";
 import DriverActiveRide from "./pages/driver/DriverActiveRide";
+import DriverShuttle from "./pages/driver/DriverShuttle";
 import DriverEarnings from "./pages/driver/DriverEarnings";
 import DriverHistory from "./pages/driver/DriverHistory";
 import DriverWallet from "./pages/driver/DriverWallet";
+import DriverProfile from "./pages/driver/DriverProfile";
+import DriverAuth from "./pages/driver/DriverAuth";
+import Forbidden from "./pages/Forbidden";
 import NotFound from "./pages/NotFound";
+import { ProtectedRoute } from "./components/layout/ProtectedRoute";
 
 const Ride = lazy(() => import("./pages/Ride"));
 
@@ -63,24 +68,32 @@ const App = () => (
           </Route>
 
           <Route path="/auth" element={<Auth />} />
+          <Route path="/driver/auth" element={<DriverAuth />} />
+          <Route path="/forbidden" element={<Forbidden />} />
 
-          <Route path="/driver" element={<DriverLayout />}>
-            <Route index element={<DriverDashboard />} />
-            <Route path="ride" element={<DriverActiveRide />} />
-            <Route path="earnings" element={<DriverEarnings />} />
-            <Route path="wallet" element={<DriverWallet />} />
-            <Route path="history" element={<DriverHistory />} />
+          <Route element={<ProtectedRoute requiredRole="moderator" />}>
+            <Route path="/driver" element={<DriverLayout />}>
+              <Route index element={<DriverDashboard />} />
+              <Route path="ride" element={<DriverActiveRide />} />
+              <Route path="shuttle" element={<DriverShuttle />} />
+              <Route path="earnings" element={<DriverEarnings />} />
+              <Route path="wallet" element={<DriverWallet />} />
+              <Route path="history" element={<DriverHistory />} />
+              <Route path="profile" element={<DriverProfile />} />
+            </Route>
           </Route>
 
-          <Route path="/admin" element={<AdminLayout />}>
-            <Route index element={<AdminOverview />} />
-            <Route path="rides" element={<AdminRides />} />
-            <Route path="shuttles" element={<AdminShuttles />} />
-            <Route path="hotels" element={<AdminHotels />} />
-            <Route path="drivers" element={<AdminDrivers />} />
-            <Route path="users" element={<AdminUsers />} />
-            <Route path="payments" element={<AdminPayments />} />
-            <Route path="settings" element={<AdminSettings />} />
+          <Route element={<ProtectedRoute requiredRole="admin" />}>
+            <Route path="/admin" element={<AdminLayout />}>
+              <Route index element={<AdminOverview />} />
+              <Route path="rides" element={<AdminRides />} />
+              <Route path="shuttles" element={<AdminShuttles />} />
+              <Route path="hotels" element={<AdminHotels />} />
+              <Route path="drivers" element={<AdminDrivers />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="payments" element={<AdminPayments />} />
+              <Route path="settings" element={<AdminSettings />} />
+            </Route>
           </Route>
 
           <Route path="*" element={<NotFound />} />

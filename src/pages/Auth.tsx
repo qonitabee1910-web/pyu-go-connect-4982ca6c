@@ -74,6 +74,17 @@ export default function Auth() {
             {isLogin ? "Sign Up" : "Sign In"}
           </button>
         </p>
+
+        <div className="pt-4 border-t border-slate-100 text-center">
+          <p className="text-xs text-slate-400 mb-2">Ingin bergabung sebagai mitra?</p>
+          <button 
+            type="button" 
+            onClick={() => navigate("/driver/auth")} 
+            className="text-emerald-600 text-sm font-bold hover:underline flex items-center justify-center gap-1 mx-auto"
+          >
+            Daftar Jadi Driver Partner
+          </button>
+        </div>
       </form>
     </div>
   );

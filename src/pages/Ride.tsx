@@ -9,6 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { reverseGeocode } from "@/lib/location";
+import { RideRatingDialog } from "@/components/ride/RideRatingDialog";
 
 export default function Ride() {
   const { user } = useAuth();
@@ -23,6 +24,8 @@ export default function Ride() {
   const [distanceKm, setDistanceKm] = useState<number | null>(null);
   const [durationMin, setDurationMin] = useState<number | null>(null);
   const [fareLoading, setFareLoading] = useState(false);
+  const [driverId, setDriverId] = useState<string | null>(null);
+  const [showRating, setShowRating] = useState(false);
   const handleRouteInfo = useCallback((dist: number, dur: number) => {
     setDistanceKm(Math.round(dist * 100) / 100);
     setDurationMin(Math.round(dur));
@@ -128,9 +131,12 @@ export default function Ride() {
         filter: `id=eq.${currentRideId}`,
       }, (payload) => {
         const newStatus = payload.new.status as string;
+        const dId = payload.new.driver_id as string;
+        if (dId) setDriverId(dId);
+
         if (newStatus === "accepted") { setRideStatus("accepted"); toast.success("Driver found! On the way."); }
         else if (newStatus === "in_progress") { setRideStatus("in_progress"); toast.info("Your ride has started!"); }
-        else if (newStatus === "completed") { setRideStatus("completed"); toast.success("Ride completed! Thank you."); }
+        else if (newStatus === "completed") { setRideStatus("completed"); setShowRating(true); toast.success("Ride completed! Thank you."); }
         else if (newStatus === "cancelled") { setRideStatus("cancelled"); toast.error("Ride was cancelled."); }
       })
       .subscribe();
@@ -195,6 +201,22 @@ export default function Ride() {
         onRequestRide={handleRequestRide}
         onStatusChange={setRideStatus}
       />
+
+      {currentRideId && driverId && (
+        <RideRatingDialog
+          rideId={currentRideId}
+          driverId={driverId}
+          isOpen={showRating}
+          onClose={() => {
+            setShowRating(false);
+            resetRide();
+          }}
+          onSuccess={() => {
+            setShowRating(false);
+            resetRide();
+          }}
+        />
+      )}
     </div>
   );
 }

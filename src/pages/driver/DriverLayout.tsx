@@ -1,12 +1,14 @@
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Navigation, Wallet, History, User, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, Navigation, Wallet, History, User, ArrowLeft, Bus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const driverNav = [
   { to: "/driver", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/driver/ride", icon: Navigation, label: "Ride Aktif" },
+  { to: "/driver/shuttle", icon: Bus, label: "Shuttle" },
   { to: "/driver/earnings", icon: Wallet, label: "Pendapatan" },
-  { to: "/driver/wallet", icon: Wallet, label: "Wallet" },
+  { to: "/driver/wallet", icon: Wallet, label: "Dompet" },
+  { to: "/driver/profile", icon: User, label: "Profil" },
   { to: "/driver/history", icon: History, label: "Riwayat" },
 ];
 

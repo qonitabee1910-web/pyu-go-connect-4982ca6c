@@ -96,6 +96,7 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
   const [totalSeats, setTotalSeats] = useState(schedule?.total_seats ?? 20);
   const [serviceTypeId, setServiceTypeId] = useState(schedule?.service_type_id ?? "");
   const [vehicleType, setVehicleType] = useState(schedule?.vehicle_type ?? "SUV");
+  const [driverId, setDriverId] = useState(schedule?.driver_id ?? "");
   const [active, setActive] = useState(schedule?.active ?? true);
   const [saving, setSaving] = useState(false);
 
@@ -103,6 +104,15 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
     queryKey: ["shuttle-service-types"],
     queryFn: async () => {
       const { data, error } = await supabase.from("shuttle_service_types").select("*").order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  const { data: drivers } = useQuery({
+    queryKey: ["admin-drivers-shuttle"],
+    queryFn: async () => {
+      const { data, error } = await (supabase.from("drivers") as any).select("id, full_name").eq("is_verified", true).order("full_name");
       if (error) throw error;
       return data;
     },
@@ -130,6 +140,7 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
         available_seats: totalSeats,
         service_type_id: serviceTypeId,
         vehicle_type: vehicleType,
+        driver_id: driverId === "none" ? null : (driverId || null),
         active,
       };
 
@@ -198,13 +209,30 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
           <Input type="time" value={arrivalTime} onChange={(e) => setArrivalTime(e.target.value)} />
         </div>
         <div className="space-y-2">
+          <Label>Driver</Label>
+          <Select value={driverId} onValueChange={setDriverId}>
+            <SelectTrigger>
+              <SelectValue placeholder="Pilih Driver" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Tanpa Driver</SelectItem>
+              {drivers?.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.full_name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-2">
           <Label>Total Kursi</Label>
           <Input type="number" value={totalSeats} onChange={(e) => setTotalSeats(Number(e.target.value))} />
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <Switch checked={active} onCheckedChange={setActive} />
-        <Label>Aktif</Label>
+        <div className="flex items-center gap-2 pt-8">
+          <Switch checked={active} onCheckedChange={setActive} />
+          <Label>Aktif</Label>
+        </div>
       </div>
       <Button className="w-full gradient-primary text-primary-foreground" onClick={handleSave} disabled={saving}>
         {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}

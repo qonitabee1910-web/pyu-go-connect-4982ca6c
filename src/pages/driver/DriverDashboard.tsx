@@ -8,12 +8,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Switch } from "@/components/ui/switch";
 import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Can } from "@/hooks/useRBAC";
 import { MapContainer, TileLayer, Marker } from "react-leaflet";
-import { Car, DollarSign, Star } from "lucide-react";
+import { Car, DollarSign, Star, ShieldCheck, ShieldAlert } from "lucide-react";
+import { toast } from "sonner";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import iconUrl from "leaflet/dist/images/marker-icon.png";
 import shadowUrl from "leaflet/dist/images/marker-shadow.png";
+
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 L.Icon.Default.mergeOptions({ iconUrl, shadowUrl });
 
@@ -29,13 +34,27 @@ export default function DriverDashboard() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("drivers")
-        .select("*")
+        .select("*, vehicles(*)")
         .eq("user_id", user!.id)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
     enabled: !!user,
+  });
+
+  const updateVehicleMutation = useMutation({
+    mutationFn: async (vehicleId: string) => {
+      const { error } = await (supabase
+        .from("drivers") as any)
+        .update({ current_vehicle_id: vehicleId })
+        .eq("id", driverId!);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["driver-profile"] });
+      toast.success("Kendaraan aktif diperbarui");
+    },
   });
 
   useEffect(() => {
@@ -96,17 +115,66 @@ export default function DriverDashboard() {
       <div className="px-4 pt-4">
         <Card>
           <CardContent className="p-4 flex items-center justify-between">
-            <div>
-              <p className="font-bold text-lg">{driver.full_name}</p>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-lg">{driver.full_name}</p>
+                {driver.is_verified ? (
+                  <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 flex gap-1 px-1.5 py-0">
+                    <ShieldCheck className="w-3 h-3" /> <span className="text-[10px]">Verified</span>
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700 hover:bg-amber-100 flex gap-1 px-1.5 py-0">
+                    <ShieldAlert className="w-3 h-3" /> <span className="text-[10px]">Pending</span>
+                  </Badge>
+                )}
+              </div>
               <p className={`text-sm font-medium ${isOnline ? "text-emerald-600" : "text-muted-foreground"}`}>
                 {isOnline ? "🟢 Online" : "⚫ Offline"}
               </p>
             </div>
-            <Switch
-              checked={isOnline}
-              onCheckedChange={(v) => toggleMutation.mutate(v)}
-              className="data-[state=checked]:bg-emerald-600"
-            />
+            <Can perform="driver:status:toggle">
+              <Switch
+                checked={isOnline}
+                onCheckedChange={(checked) => toggleMutation.mutate(checked)}
+                disabled={toggleMutation.isPending}
+                className="data-[state=checked]:bg-emerald-500"
+              />
+            </Can>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Vehicle Selection */}
+      <div className="px-4">
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
+              <Car className="w-4 h-4" /> Kendaraan Aktif
+            </div>
+            <Select 
+              value={driver.current_vehicle_id || ""} 
+              onValueChange={(val) => updateVehicleMutation.mutate(val)}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Pilih Kendaraan" />
+              </SelectTrigger>
+              <SelectContent>
+                {driver.vehicles && (driver.vehicles as any) ? (
+                  [(driver.vehicles as any)].map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.model} ({v.plate_number}) - {v.vehicle_type}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="none" disabled>Belum ada kendaraan terdaftar</SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            {!driver.current_vehicle_id && (
+              <p className="text-[10px] text-amber-600 font-medium">
+                * Pilih kendaraan untuk mulai menerima order
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>

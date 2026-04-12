@@ -239,45 +239,77 @@ export type Database = {
       }
       drivers: {
         Row: {
+          avatar_url: string | null
           created_at: string
           current_lat: number | null
           current_lng: number | null
+          current_vehicle_id: string | null
           full_name: string
+          gender: Database["public"]["Enums"]["gender_type"]
           id: string
+          is_verified: boolean
           license_number: string | null
           phone: string
+          pin_hash: string | null
+          prefers_bike: boolean
+          prefers_bike_women: boolean
+          prefers_car: boolean
           rating: number | null
           status: Database["public"]["Enums"]["driver_status"]
           updated_at: string
           user_id: string | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
+          current_vehicle_id?: string | null
           full_name: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
+          is_verified?: boolean
           license_number?: string | null
           phone: string
+          pin_hash?: string | null
+          prefers_bike?: boolean
+          prefers_bike_women?: boolean
+          prefers_car?: boolean
           rating?: number | null
           status?: Database["public"]["Enums"]["driver_status"]
           updated_at?: string
           user_id?: string | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
+          current_vehicle_id?: string | null
           full_name?: string
+          gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
+          is_verified?: boolean
           license_number?: string | null
           phone?: string
+          pin_hash?: string | null
+          prefers_bike?: boolean
+          prefers_bike_women?: boolean
+          prefers_car?: boolean
           rating?: number | null
           status?: Database["public"]["Enums"]["driver_status"]
           updated_at?: string
           user_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "drivers_current_vehicle_id_fkey"
+            columns: ["current_vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       hotel_bookings: {
         Row: {
@@ -493,6 +525,7 @@ export type Database = {
           avatar_url: string | null
           created_at: string
           full_name: string | null
+          gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
           phone: string | null
           updated_at: string
@@ -502,6 +535,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
           phone?: string | null
           updated_at?: string
@@ -511,6 +545,7 @@ export type Database = {
           avatar_url?: string | null
           created_at?: string
           full_name?: string | null
+          gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
           phone?: string | null
           updated_at?: string
@@ -612,6 +647,51 @@ export type Database = {
           used_count?: number
         }
         Relationships: []
+      }
+      ride_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          driver_id: string
+          id: string
+          rating: number
+          ride_id: string
+          rider_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          driver_id: string
+          id?: string
+          rating: number
+          ride_id: string
+          rider_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          driver_id?: string
+          id?: string
+          rating?: number
+          ride_id?: string
+          rider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ride_ratings_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ride_ratings_ride_id_fkey"
+            columns: ["ride_id"]
+            isOneToOne: true
+            referencedRelation: "rides"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rides: {
         Row: {
@@ -722,6 +802,7 @@ export type Database = {
           payment_status: string
           pickup_point_id: string | null
           rayon_id: string | null
+          notes: string | null
           schedule_id: string
           seat_count: number
           status: Database["public"]["Enums"]["booking_status"]
@@ -739,6 +820,7 @@ export type Database = {
           payment_status?: string
           pickup_point_id?: string | null
           rayon_id?: string | null
+          notes?: string | null
           schedule_id: string
           seat_count?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -756,6 +838,7 @@ export type Database = {
           payment_status?: string
           pickup_point_id?: string | null
           rayon_id?: string | null
+          notes?: string | null
           schedule_id?: string
           seat_count?: number
           status?: Database["public"]["Enums"]["booking_status"]
@@ -915,6 +998,7 @@ export type Database = {
           available_seats: number
           created_at: string
           departure_time: string
+          driver_id: string | null
           id: string
           route_id: string
           service_type_id: string | null
@@ -929,6 +1013,7 @@ export type Database = {
           available_seats?: number
           created_at?: string
           departure_time: string
+          driver_id?: string | null
           id?: string
           route_id: string
           service_type_id?: string | null
@@ -943,6 +1028,7 @@ export type Database = {
           available_seats?: number
           created_at?: string
           departure_time?: string
+          driver_id?: string | null
           id?: string
           route_id?: string
           service_type_id?: string | null
@@ -952,6 +1038,13 @@ export type Database = {
           vehicle_type?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "shuttle_schedules_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "shuttle_schedules_route_id_fkey"
             columns: ["route_id"]
@@ -1068,10 +1161,13 @@ export type Database = {
           created_at: string
           driver_id: string
           id: string
+          image_url: string | null
+          is_verified: boolean | null
           model: string | null
           plate_number: string
           updated_at: string
           vehicle_type: string
+          year: number | null
         }
         Insert: {
           capacity?: number
@@ -1079,10 +1175,13 @@ export type Database = {
           created_at?: string
           driver_id: string
           id?: string
+          image_url?: string | null
+          is_verified?: boolean | null
           model?: string | null
           plate_number: string
           updated_at?: string
           vehicle_type?: string
+          year?: number | null
         }
         Update: {
           capacity?: number
@@ -1090,10 +1189,13 @@ export type Database = {
           created_at?: string
           driver_id?: string
           id?: string
+          image_url?: string | null
+          is_verified?: boolean | null
           model?: string | null
           plate_number?: string
           updated_at?: string
           vehicle_type?: string
+          year?: number | null
         }
         Relationships: [
           {
@@ -1238,6 +1340,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_driver_to_shuttle: {
+        Args: {
+          p_schedule_id: string
+          p_driver_id: string
+        }
+        Returns: boolean
+      }
       cleanup_expired_seat_reservations: { Args: never; Returns: undefined }
       create_shuttle_booking_atomic: {
         Args: {
@@ -1293,6 +1402,7 @@ export type Database = {
       app_role: "admin" | "moderator" | "user"
       booking_status: "confirmed" | "cancelled" | "completed"
       driver_status: "available" | "busy" | "offline"
+      gender_type: "male" | "female"
       hotel_booking_status: "pending" | "confirmed" | "cancelled" | "completed"
       promo_discount_type: "percentage" | "fixed_amount"
       promo_target_service: "ride" | "shuttle" | "hotel" | "all"
@@ -1445,6 +1555,7 @@ export const Constants = {
       app_role: ["admin", "moderator", "user"],
       booking_status: ["confirmed", "cancelled", "completed"],
       driver_status: ["available", "busy", "offline"],
+      gender_type: ["male", "female"],
       hotel_booking_status: ["pending", "confirmed", "cancelled", "completed"],
       promo_discount_type: ["percentage", "fixed_amount"],
       promo_target_service: ["ride", "shuttle", "hotel", "all"],
