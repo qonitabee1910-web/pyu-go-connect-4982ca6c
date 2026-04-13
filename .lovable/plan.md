@@ -1,81 +1,59 @@
 
 
-# Pengembangan Modul Driver: Kendaraan & Profil
+# Fix Build Errors + Add Missing Shuttle Pickup Features
 
-## Ringkasan
-Memperbaiki dan menyempurnakan modul Driver Profile dan Vehicle Management agar lebih robust, user-friendly, dan production-ready.
+## A. Build Error Fixes
 
----
+### 1. `DriverEarningsAnalytics.tsx` (line 133)
+Recharts `Tooltip` formatter receives `ValueType` (string | number). Fix: cast `value` to `Number()`.
 
-## Masalah yang Ditemukan
+### 2. `useAuth.ts` (line 69)
+`USER_DELETED` is not a valid `AuthChangeEvent`. Remove it from the comparison — handle it under the `else` branch or just remove the check.
 
-1. **Driver registration metadata key mismatch** — `DriverAuth.tsx` mengirim `isDriver: true` tapi trigger `handle_new_user` membaca `is_driver`. Registrasi driver tidak pernah membuat record di tabel `drivers`.
-2. **Profil tidak menampilkan email** — Field `email` tidak ada di tabel `drivers`, jadi selalu "Email tidak tersedia".
-3. **PIN disimpan plain text** — `SecuritySettings.tsx` menyimpan PIN tanpa hashing.
-4. **Tidak ada validasi file type** saat upload dokumen (KTP/SIM/STNK) — hanya `accept="image/*"` tanpa server-side check.
-5. **Vehicle form tidak ada validasi plate format** — Nomor polisi bisa diisi sembarang.
-6. **Tidak ada konfirmasi hapus kendaraan yang proper** — Menggunakan `window.confirm()` bukan Dialog component.
-7. **Driver `email` field missing** — Perlu ditambahkan ke tabel `drivers` atau diambil dari auth user.
+### 3. `AdminDrivers.tsx` (lines 115, 119)
+Filter values are `string` but `.eq()` expects the enum type. Fix: cast with `as any` on the query or type the filter variables properly.
 
----
+### 4. `DriverAdminService.ts` (lines 73-74, 94, 111)
+- Lines 73-74: Same enum casting issue — add `as any` to `.eq()` calls.
+- Line 94: `vehicles(count)` returns `{count: number}` not `any[]`. Fix the `DriverWithStats` interface to have `vehicles?: {count: number}` or cast through `unknown`.
+- Line 111: `"on_ride"` is not in driver_status enum. Remove or change to `"busy"`.
 
-## Rencana Perubahan
+## B. Shuttle Pickup Enhancements
 
-### 1. Fix Registration Metadata Key
-**File:** `src/pages/driver/DriverAuth.tsx`
-- Ubah `isDriver: true` → `is_driver: true` agar cocok dengan trigger `handle_new_user`.
+### 1. Drop-off Point Selection
+Currently only pickup points exist. Add a **drop-off selection step** after pickup, reusing the same `PickupSelector` component pattern but for destination points. This requires:
+- New step `"dropoff"` in the flow
+- Query drop-off points (can reuse `shuttle_pickup_points` with a `type` column, or use destination rayon's points)
+- Show selected drop-off in ticket confirmation
 
-### 2. Tambah Kolom `email` ke Tabel `drivers`
-**Migration:**
-- Tambah kolom `email TEXT` ke tabel `drivers`.
-- Update trigger `handle_new_user` untuk mengisi `email` dari `NEW.email`.
-- Update trigger `handle_user_update` untuk sync email.
+### 2. Pickup Point Details Enhancement
+- Show pickup point location on a mini map (Leaflet) in `PickupSelector`
+- Add estimated pickup time calculation based on `departure_time` and `stop_order`
 
-### 3. Perbaiki ProfilePhoto — Handle Missing Storage Bucket
-**File:** `src/components/driver/profile/ProfilePhoto.tsx`
-- Tidak ada perubahan major, sudah cukup baik.
+### 3. Pickup Status Tracking in History
+The `shuttle_bookings` table already has `pickup_status` and `pickup_driver_name/plate` columns. Display these in the booking history cards with status badges (pending → picked_up → delivered).
 
-### 4. Perbaiki BasicInfoForm — Ambil Email dari Auth
-**File:** `src/components/driver/profile/BasicInfoForm.tsx`
-- Tampilkan email dari driver record (setelah kolom ditambah).
-
-### 5. Perbaiki VehicleInfo — Better UX
-**File:** `src/components/driver/profile/VehicleInfo.tsx`
-- Ganti `window.confirm()` dengan AlertDialog component.
-- Tambah validasi format nomor polisi.
-- Tambah validasi tahun kendaraan (min 1990, max tahun sekarang + 1).
-
-### 6. Perbaiki SecuritySettings — Hash PIN
-**File:** `src/components/driver/profile/SecuritySettings.tsx`
-- Gunakan simple hash (SHA-256 via Web Crypto API) sebelum menyimpan PIN.
-- Verifikasi PIN lama sebelum update.
-
-### 7. Perbaiki DocumentVerification — File Size Validation
-**File:** `src/components/driver/profile/DocumentVerification.tsx`
-- Tambah validasi ukuran file (max 5MB).
-- Tambah validasi tipe file (hanya image/jpeg, image/png).
+### 4. Pickup Point Admin Management
+Add pickup point CRUD in `AdminShuttles.tsx` under a new "Pickup Points" tab.
 
 ---
 
-## Detail Teknis
+## Files to Change
 
-### Migration SQL
-```sql
--- Add email column to drivers
-ALTER TABLE public.drivers ADD COLUMN IF NOT EXISTS email TEXT;
+| File | Changes |
+|------|---------|
+| `src/components/admin/DriverEarningsAnalytics.tsx` | Cast tooltip value to Number |
+| `src/hooks/useAuth.ts` | Remove `USER_DELETED` check |
+| `src/pages/admin/AdminDrivers.tsx` | Add `as any` to enum filter calls |
+| `src/services/DriverAdminService.ts` | Fix types, remove `on_ride`, cast queries |
+| `src/pages/Shuttle.tsx` | Add dropoff step, enhanced pickup flow |
+| `src/components/shuttle/PickupSelector.tsx` | Add mini-map, ETA display |
+| `src/components/shuttle/DropoffSelector.tsx` | New component for drop-off point selection |
+| `src/components/shuttle/ShuttleTicket.tsx` | Show drop-off point name |
+| `src/pages/admin/AdminShuttles.tsx` | Add "Pickup Points" tab |
+| `src/components/admin/shuttle/PickupPointsTab.tsx` | New: CRUD for pickup points |
 
--- Update handle_new_user to populate email
-CREATE OR REPLACE FUNCTION public.handle_new_user() ...
-  -- Add: email = NEW.email in INSERT INTO drivers
-```
-
-### Files yang Diubah
-| File | Perubahan |
-|------|-----------|
-| `src/pages/driver/DriverAuth.tsx` | Fix `isDriver` → `is_driver` key |
-| `src/components/driver/profile/VehicleInfo.tsx` | AlertDialog, validasi plate & year |
-| `src/components/driver/profile/SecuritySettings.tsx` | PIN hashing via Web Crypto |
-| `src/components/driver/profile/DocumentVerification.tsx` | File size & type validation |
-| `src/components/driver/profile/BasicInfoForm.tsx` | Minor: email dari driver record |
-| 1 migration | Add `email` column + update triggers |
+### Database Changes
+- Add `point_type` column to `shuttle_pickup_points` (values: 'pickup', 'dropoff') with default 'pickup' — via migration
+- Or simply reuse existing pickup points and let the drop-off be the route destination
 
