@@ -16,6 +16,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
@@ -29,12 +39,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 
+const PLATE_REGEX = /^[A-Z]{1,2}\s?\d{1,4}\s?[A-Z]{0,3}$/;
+const CURRENT_YEAR = new Date().getFullYear();
+
 export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: any) {
   const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Form states
@@ -78,9 +92,14 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
     const file = e.target.files?.[0];
     if (!file || !user) return;
 
-    // Validate size (max 2MB)
     if (file.size > 2 * 1024 * 1024) {
       toast.error("Ukuran gambar maksimal 2MB");
+      return;
+    }
+
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      toast.error("Format file harus JPG, PNG, atau WebP");
       return;
     }
 
@@ -109,9 +128,34 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
     }
   };
 
+  const validateForm = (): string | null => {
+    if (!model.trim()) return "Model kendaraan wajib diisi";
+    if (!plate.trim()) return "Nomor polisi wajib diisi";
+    
+    const cleanPlate = plate.replace(/\s+/g, " ").trim();
+    if (!PLATE_REGEX.test(cleanPlate)) {
+      return "Format nomor polisi tidak valid (contoh: B 1234 ABC)";
+    }
+
+    if (year) {
+      const y = parseInt(year);
+      if (isNaN(y) || y < 1990 || y > CURRENT_YEAR + 1) {
+        return `Tahun harus antara 1990 - ${CURRENT_YEAR + 1}`;
+      }
+    }
+
+    const cap = parseInt(capacity);
+    if (isNaN(cap) || cap < 1 || cap > 50) {
+      return "Kapasitas harus antara 1 - 50";
+    }
+
+    return null;
+  };
+
   const handleSave = async () => {
-    if (!model || !plate) {
-      toast.error("Model dan Nomor Polisi wajib diisi");
+    const error = validateForm();
+    if (error) {
+      toast.error(error);
       return;
     }
 
@@ -119,13 +163,13 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
     try {
       const vehicleData = {
         driver_id: driverId,
-        model,
-        plate_number: plate,
+        model: model.trim(),
+        plate_number: plate.replace(/\s+/g, " ").trim().toUpperCase(),
         year: parseInt(year) || null,
-        color,
+        color: color.trim() || null,
         vehicle_type: type,
         capacity: parseInt(capacity) || 4,
-        image_url: imageUrl,
+        image_url: imageUrl || null,
       };
 
       if (editingVehicle) {
@@ -152,19 +196,20 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!window.confirm("Hapus kendaraan ini?")) return;
-    
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
       const { error } = await (supabase
         .from("vehicles") as any)
         .delete()
-        .eq("id", id);
+        .eq("id", deleteTarget);
       if (error) throw error;
       toast.success("Kendaraan dihapus");
       onUpdate();
     } catch (err: any) {
       toast.error(err.message);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -231,7 +276,7 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
                         variant="ghost" 
                         size="icon" 
                         className="rounded-full w-8 h-8 shadow-md bg-white hover:text-red-600"
-                        onClick={() => handleDelete(v.id)}
+                        onClick={() => setDeleteTarget(v.id)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -297,6 +342,27 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
         </div>
       )}
 
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent className="rounded-3xl border-none">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus Kendaraan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Apakah Anda yakin ingin menghapus kendaraan ini? Tindakan ini tidak dapat dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="flex-row gap-2 pt-2">
+            <AlertDialogCancel className="flex-1 rounded-xl h-12 mt-0">Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="flex-1 rounded-xl h-12 bg-red-600 hover:bg-red-700"
+            >
+              Ya, Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Form Modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="rounded-3xl border-none max-w-[95%] sm:max-w-md max-h-[90vh] overflow-y-auto">
@@ -334,14 +400,14 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
                   type="file" 
                   ref={fileInputRef} 
                   className="hidden" 
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageUpload}
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Model Kendaraan</Label>
+              <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Model Kendaraan *</Label>
               <Input 
                 value={model} 
                 onChange={(e) => setModel(e.target.value)} 
@@ -352,13 +418,14 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Nomor Polisi</Label>
+                <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Nomor Polisi *</Label>
                 <Input 
                   value={plate} 
                   onChange={(e) => setPlate(e.target.value.toUpperCase())} 
                   placeholder="B 1234 ABC" 
                   className="h-12 rounded-xl bg-slate-50 border-slate-200" 
                 />
+                <p className="text-[10px] text-slate-400">Format: B 1234 ABC</p>
               </div>
               <div className="space-y-2">
                 <Label className="text-xs font-black uppercase tracking-widest text-slate-400">Tipe</Label>
@@ -382,7 +449,9 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
                   type="number" 
                   value={year} 
                   onChange={(e) => setYear(e.target.value)} 
-                  placeholder="2022" 
+                  placeholder="2022"
+                  min={1990}
+                  max={CURRENT_YEAR + 1}
                   className="h-12 rounded-xl bg-slate-50 border-slate-200" 
                 />
               </div>
@@ -392,7 +461,9 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
                   type="number" 
                   value={capacity} 
                   onChange={(e) => setCapacity(e.target.value)} 
-                  placeholder="4" 
+                  placeholder="4"
+                  min={1}
+                  max={50}
                   className="h-12 rounded-xl bg-slate-50 border-slate-200" 
                 />
               </div>
@@ -439,13 +510,5 @@ function VehicleDetail({ icon, label, value }: any) {
       </div>
       <p className="text-xs font-bold text-slate-700">{value}</p>
     </div>
-  );
-}
-
-function Badge({ children, className }: any) {
-  return (
-    <span className={`px-2 py-1 rounded text-[10px] font-bold text-white ${className}`}>
-      {children}
-    </span>
   );
 }

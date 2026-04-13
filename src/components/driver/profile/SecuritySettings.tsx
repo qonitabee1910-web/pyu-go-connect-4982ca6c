@@ -1,12 +1,11 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { 
-  Shield, Key, Mail, Phone, Lock, 
-  ChevronRight, Loader2, CheckCircle2 
+  Key, Mail, Phone, 
+  ChevronRight, Loader2
 } from "lucide-react";
 import {
   Dialog,
@@ -17,6 +16,14 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+
+async function hashPin(pin: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(pin);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: () => void }) {
   const [activeModal, setActiveModal] = useState<"pin" | "email" | "phone" | null>(null);
@@ -39,11 +46,20 @@ export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: 
 
     setLoading(true);
     try {
-      // In a real app, you'd verify the old PIN first and use a secure hash
-      // For this implementation, we'll simulate the update
+      // Verify old PIN if one exists
+      if (driver.pin_hash) {
+        const oldHash = await hashPin(oldPin);
+        if (oldHash !== driver.pin_hash) {
+          toast.error("PIN lama salah");
+          return;
+        }
+      }
+
+      const hashedPin = await hashPin(newPin);
+
       const { error } = await (supabase
         .from("drivers") as any)
-        .update({ pin_hash: newPin }) // In production, hash this!
+        .update({ pin_hash: hashedPin })
         .eq("id", driver.id);
 
       if (error) throw error;
@@ -53,6 +69,7 @@ export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: 
       setOldPin("");
       setNewPin("");
       setConfirmPin("");
+      onUpdate();
     } catch (err: any) {
       toast.error(err.message);
     } finally {
@@ -92,24 +109,26 @@ export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: 
             <DialogTitle>Ganti PIN</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label>PIN Lama</Label>
-              <Input 
-                type="password" 
-                maxLength={6} 
-                value={oldPin} 
-                onChange={(e) => setOldPin(e.target.value)} 
-                placeholder="••••••"
-                className="text-center text-2xl tracking-[1em] h-14 rounded-2xl"
-              />
-            </div>
+            {driver.pin_hash && (
+              <div className="space-y-2">
+                <Label>PIN Lama</Label>
+                <Input 
+                  type="password" 
+                  maxLength={6} 
+                  value={oldPin} 
+                  onChange={(e) => setOldPin(e.target.value.replace(/\D/g, ""))} 
+                  placeholder="••••••"
+                  className="text-center text-2xl tracking-[1em] h-14 rounded-2xl"
+                />
+              </div>
+            )}
             <div className="space-y-2">
               <Label>PIN Baru (6 Digit)</Label>
               <Input 
                 type="password" 
                 maxLength={6} 
                 value={newPin} 
-                onChange={(e) => setNewPin(e.target.value)} 
+                onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ""))} 
                 placeholder="••••••"
                 className="text-center text-2xl tracking-[1em] h-14 rounded-2xl"
               />
@@ -120,7 +139,7 @@ export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: 
                 type="password" 
                 maxLength={6} 
                 value={confirmPin} 
-                onChange={(e) => setConfirmPin(e.target.value)} 
+                onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ""))} 
                 placeholder="••••••"
                 className="text-center text-2xl tracking-[1em] h-14 rounded-2xl"
               />
@@ -137,8 +156,6 @@ export function SecuritySettings({ driver, onUpdate }: { driver: any, onUpdate: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Email/Phone modals would follow a similar pattern with OTP flow */}
     </div>
   );
 }

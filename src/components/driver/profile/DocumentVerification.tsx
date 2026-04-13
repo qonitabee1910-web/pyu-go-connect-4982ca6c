@@ -4,11 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  FileText, Upload, CheckCircle2, AlertCircle, Loader2, Eye, X, ShieldCheck, ShieldAlert, ShieldQuestion
+  FileText, Upload, CheckCircle2, AlertCircle, Loader2, Eye, ShieldCheck, ShieldAlert, ShieldQuestion
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Input } from "@/components/ui/input";
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const ALLOWED_TYPES = ["image/jpeg", "image/png"];
 
 interface DocumentVerificationProps {
   driver: any;
@@ -23,6 +25,18 @@ export function DocumentVerification({ driver, onUpdate }: DocumentVerificationP
       setUploading(type);
       const file = event.target.files?.[0];
       if (!file) return;
+
+      // Validate file type
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        toast.error("Format file harus JPG atau PNG");
+        return;
+      }
+
+      // Validate file size
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error("Ukuran file maksimal 5MB");
+        return;
+      }
 
       const fileExt = file.name.split('.').pop();
       const fileName = `${driver.user_id}/${type}-${Math.random()}.${fileExt}`;
@@ -117,7 +131,7 @@ export function DocumentVerification({ driver, onUpdate }: DocumentVerificationP
             <div className="space-y-1">
               <p className="text-sm font-bold text-emerald-800">Keamanan Data Terjamin</p>
               <p className="text-[11px] text-emerald-700 leading-relaxed">
-                Dokumen Anda dienkripsi dan hanya digunakan untuk keperluan verifikasi identitas pengemudi demi keamanan bersama.
+                Dokumen Anda dienkripsi dan hanya digunakan untuk keperluan verifikasi identitas pengemudi. Format: JPG/PNG, maks. 5MB.
               </p>
             </div>
           </div>
@@ -150,7 +164,7 @@ function DocItem({ label, url, loading, onUpload }: { label: string, url: string
               <div className="bg-white text-slate-800 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm hover:bg-slate-50 transition-colors">
                 <Upload className="w-3.5 h-3.5" /> Ganti
               </div>
-              <input type="file" className="hidden" accept="image/*" onChange={onUpload} />
+              <input type="file" className="hidden" accept="image/jpeg,image/png" onChange={onUpload} />
             </label>
           </div>
         </div>
@@ -166,7 +180,7 @@ function DocItem({ label, url, loading, onUpload }: { label: string, url: string
               </>
             )}
           </div>
-          <input type="file" className="hidden" accept="image/*" onChange={onUpload} disabled={loading} />
+          <input type="file" className="hidden" accept="image/jpeg,image/png" onChange={onUpload} disabled={loading} />
         </label>
       )}
     </div>
