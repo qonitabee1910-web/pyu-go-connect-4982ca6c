@@ -107,14 +107,26 @@ export class DriverProfileRepository {
   }
 
   static async getSettings(driverId: string): Promise<DriverSettings | null> {
-    const { data, error } = await (supabase as any)
-      .from("driver_settings")
-      .select("*")
-      .eq("driver_id", driverId)
-      .maybeSingle();
+    try {
+      const { data, error } = await (supabase as any)
+        .from("driver_settings")
+        .select("*")
+        .eq("driver_id", driverId)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data as DriverSettings | null;
+      if (error) {
+        // Table might not exist yet - return null to trigger initialization
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          return null;
+        }
+        throw error;
+      }
+      
+      return data as DriverSettings | null;
+    } catch (error) {
+      // If table doesn't exist, return null - will be initialized on demand
+      return null;
+    }
   }
 
   static async updateProfile(

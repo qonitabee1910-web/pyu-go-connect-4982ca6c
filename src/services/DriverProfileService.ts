@@ -23,7 +23,37 @@ export class DriverProfileService {
       DriverProfileRepository.getDocuments(profile.id),
     ]);
 
-    return { profile, settings, vehicles, documents };
+    // Auto-initialize settings if they don't exist
+    let finalSettings = settings;
+    if (!settings) {
+      try {
+        finalSettings = await DriverProfileRepository.initializeSettings(profile.id);
+      } catch (error) {
+        // Settings table might not exist yet - return default values
+        finalSettings = {
+          id: 'temp',
+          driver_id: profile.id,
+          working_hours_enabled: false,
+          working_hours_start: '08:00',
+          working_hours_end: '20:00',
+          available_monday: true,
+          available_tuesday: true,
+          available_wednesday: true,
+          available_thursday: true,
+          available_friday: true,
+          available_saturday: true,
+          available_sunday: false,
+          service_area_radius_km: 50,
+          auto_accept_rides: false,
+          auto_accept_timeout_seconds: 10,
+          preferred_payment_method: 'cash',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
+    }
+
+    return { profile, settings: finalSettings, vehicles, documents };
   }
 
   /**

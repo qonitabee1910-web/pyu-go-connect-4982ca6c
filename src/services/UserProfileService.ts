@@ -14,7 +14,35 @@ export class UserProfileService {
       UserProfileRepository.getSettings(userId),
     ]);
 
-    return { profile, settings };
+    // Auto-initialize settings if they don't exist
+    let finalSettings = settings;
+    if (!settings) {
+      try {
+        finalSettings = await UserProfileRepository.initializeSettings(userId);
+      } catch (error) {
+        // Settings table might not exist yet - return default values
+        finalSettings = {
+          id: 'temp',
+          user_id: userId,
+          language: 'en',
+          currency: 'IDR',
+          theme: 'light',
+          notification_email: true,
+          notification_push: true,
+          notification_sms: false,
+          notification_promotions: true,
+          notification_ride_updates: true,
+          privacy_show_profile: true,
+          privacy_show_location: false,
+          two_factor_enabled: false,
+          data_sharing_analytics: true,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+      }
+    }
+
+    return { profile, settings: finalSettings };
   }
 
   /**

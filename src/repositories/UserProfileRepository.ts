@@ -53,14 +53,26 @@ export class UserProfileRepository {
   }
 
   static async getSettings(userId: string): Promise<UserSettings | null> {
-    const { data, error } = await (supabase as any)
-      .from("user_settings")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
+    try {
+      const { data, error } = await (supabase as any)
+        .from("user_settings")
+        .select("*")
+        .eq("user_id", userId)
+        .maybeSingle();
 
-    if (error) throw error;
-    return data as UserSettings | null;
+      if (error) {
+        // Table might not exist yet - return null to trigger initialization
+        if (error.code === 'PGRST116' || error.code === '42P01') {
+          return null;
+        }
+        throw error;
+      }
+      
+      return data as UserSettings | null;
+    } catch (error) {
+      // If table doesn't exist, return null - will be initialized on demand
+      return null;
+    }
   }
 
   static async updateProfile(
