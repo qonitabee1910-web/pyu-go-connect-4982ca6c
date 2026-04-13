@@ -220,17 +220,17 @@ export function VehicleInfo({ driverId, vehicles, currentVehicleId, onUpdate }: 
 
                     <div className="absolute top-4 right-4 flex gap-2">
                       <Button 
-                        variant="white" 
+                        variant="ghost" 
                         size="icon" 
-                        className="rounded-full w-8 h-8 shadow-md"
+                        className="rounded-full w-8 h-8 shadow-md bg-white"
                         onClick={() => handleEdit(v)}
                       >
                         <Edit2 className="w-3.5 h-3.5 text-slate-600" />
                       </Button>
                       <Button 
-                        variant="white" 
+                        variant="ghost" 
                         size="icon" 
-                        className="rounded-full w-8 h-8 shadow-md hover:text-red-600"
+                        className="rounded-full w-8 h-8 shadow-md bg-white hover:text-red-600"
                         onClick={() => handleDelete(v.id)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
