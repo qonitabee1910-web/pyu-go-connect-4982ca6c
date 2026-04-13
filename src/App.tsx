@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import VerifyEmail from "./pages/VerifyEmail";
 
 // Lazy-loaded pages
 const Shuttle = lazy(() => import("./pages/Shuttle"));
@@ -83,6 +84,7 @@ const App = () => {
               </Route>
 
               <Route path="/auth" element={<Auth />} />
+              <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/driver/auth" element={<DriverAuth />} />
               <Route path="/forbidden" element={<Forbidden />} />
 

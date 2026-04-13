@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,8 +12,28 @@ export default function Auth() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn, signUp, role } = useAuth();
+  const { signIn, signUp, user, role, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ Redirect after successful login
+  useEffect(() => {
+    if (user && role && !isLoading) {
+      const from = location.state?.from?.pathname;
+      
+      // Redirect back to original page if available
+      if (from && from !== "/auth" && from !== "/driver/auth") {
+        navigate(from, { replace: true });
+      } else {
+        // Otherwise use default path based on role
+        if (role === "admin") {
+          navigate("/admin", { replace: true });
+        } else {
+          navigate("/", { replace: true });
+        }
+      }
+    }
+  }, [user, role, isLoading, location.state, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +49,10 @@ export default function Auth() {
         const { error } = await signUp(email, password, fullName);
         if (error) throw error;
         toast.success("Silakan cek email Anda untuk konfirmasi akun!");
+        
+        // ✅ Redirect to email verification page
+        sessionStorage.setItem("authRedirect", "/auth");
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
       }
     } catch (err: any) {
       toast.error(err.message);
@@ -49,7 +73,12 @@ export default function Auth() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex-1 px-6 pt-8 space-y-5">
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex-1 px-6 pt-8 space-y-5">
         {!isLogin && (
           <div className="space-y-2">
             <Label htmlFor="fullName">Nama Lengkap</Label>
@@ -87,6 +116,7 @@ export default function Auth() {
           </button>
         </div>
       </form>
+      )}
     </div>
   );
 }

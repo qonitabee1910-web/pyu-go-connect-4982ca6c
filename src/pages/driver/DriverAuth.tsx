@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +16,24 @@ export default function DriverAuth() {
   const [licenseNumber, setLicenseNumber] = useState("");
   const [loading, setLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, user, role, isLoading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // ✅ Redirect after successful driver login
+  useEffect(() => {
+    if (user && role === "moderator" && !isLoading) {
+      const from = location.state?.from?.pathname;
+      
+      // Redirect back to original driver page if available
+      if (from && from.startsWith("/driver")) {
+        navigate(from, { replace: true });
+      } else {
+        // Otherwise default to driver dashboard
+        navigate("/driver", { replace: true });
+      }
+    }
+  }, [user, role, isLoading, location.state, navigate]);
 
   // Validation helpers
   const validatePhone = (phoneNumber: string): string | null => {
@@ -121,8 +137,13 @@ export default function DriverAuth() {
         </p>
       </div>
 
-      <div className="flex-1 px-6 -mt-4 pb-10">
-        <form 
+      {isLoading ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+        </div>
+      ) : (
+        <div className="flex-1 px-6 -mt-4 pb-10">
+          <form 
           onSubmit={handleSubmit} 
           className="bg-white rounded-3xl p-6 shadow-xl border border-slate-100 space-y-5"
         >
@@ -245,6 +266,7 @@ export default function DriverAuth() {
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }
