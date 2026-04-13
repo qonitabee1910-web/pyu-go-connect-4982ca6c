@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MapPin, AlertCircle, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { MapPin, AlertCircle, Loader2, Search } from "lucide-react";
 import { format } from "date-fns";
 
 interface PickupSelectorProps {
@@ -18,6 +20,8 @@ export function PickupSelector({
   onSelectPickupPoint,
   onBack
 }: PickupSelectorProps) {
+  const [searchQuery, setSearchQuery] = useState("");
+
   if (!rayons) {
     return (
       <div className="space-y-3">
@@ -76,19 +80,59 @@ export function PickupSelector({
     );
   }
 
+  // Filter by search query
+  const query = searchQuery.trim().toLowerCase();
+  const filteredRayons = query
+    ? pickupRayons.map(r => ({
+        ...r,
+        pickup_points: r.pickup_points.filter((p: any) =>
+          p.name?.toLowerCase().includes(query) || r.name?.toLowerCase().includes(query)
+        )
+      })).filter(r => r.pickup_points.length > 0)
+    : pickupRayons;
+
+  const totalPoints = filteredRayons.reduce((sum, r) => sum + r.pickup_points.length, 0);
+
   return (
     <div className="space-y-3">
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="w-4 h-4" />
             Pilih Titik Jemput
           </CardTitle>
           <p className="text-xs text-muted-foreground">{selectedRoute?.name} • {format(new Date(selectedScheduleDeparture), "dd MMM yyyy, HH:mm")}</p>
         </CardHeader>
+        <CardContent className="pt-0">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Cari titik jemput..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          {query && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {totalPoints > 0
+                ? `${totalPoints} titik jemput ditemukan`
+                : "Tidak ditemukan titik jemput dengan kata kunci tersebut"}
+            </p>
+          )}
+        </CardContent>
       </Card>
-      
-      {pickupRayons.map((rayon) => (
+
+      {filteredRayons.length === 0 && query && (
+        <Card className="border-dashed">
+          <CardContent className="p-6 text-center">
+            <Search className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
+            <p className="text-sm text-muted-foreground">Tidak ditemukan titik jemput untuk "{searchQuery}"</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {filteredRayons.map((rayon) => (
         <div key={rayon.id} className="space-y-2">
           <div className="px-1">
             <h3 className="text-sm font-bold text-slate-600">{rayon.name}</h3>
