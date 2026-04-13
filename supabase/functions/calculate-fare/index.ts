@@ -73,10 +73,38 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, service_type } = await req.json();
+    // Log incoming request for debugging
+    console.log("calculate-fare invoked:", {
+      method: req.method,
+      headers: Object.fromEntries(req.headers),
+    });
 
-    if (!pickup_lat || !pickup_lng || !dropoff_lat || !dropoff_lng) {
-      return new Response(JSON.stringify({ error: "Missing coordinates" }), {
+    const bodyText = await req.text();
+    console.log("Raw body:", bodyText);
+    
+    let body: any;
+    try {
+      body = JSON.parse(bodyText);
+    } catch (parseErr) {
+      console.error("JSON parse error:", parseErr);
+      return new Response(JSON.stringify({ 
+        error: "Invalid JSON in request body",
+        received: bodyText.substring(0, 100)
+      }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, service_type } = body;
+    
+    console.log("Parsed coordinates:", { pickup_lat, pickup_lng, dropoff_lat, dropoff_lng, service_type });
+
+    // Proper validation for coordinates (0 is valid, only null/undefined/NaN is invalid)
+    if (pickup_lat === null || pickup_lat === undefined || isNaN(pickup_lat) ||
+        pickup_lng === null || pickup_lng === undefined || isNaN(pickup_lng) ||
+        dropoff_lat === null || dropoff_lat === undefined || isNaN(dropoff_lat) ||
+        dropoff_lng === null || dropoff_lng === undefined || isNaN(dropoff_lng)) {
+      return new Response(JSON.stringify({ error: "Missing or invalid coordinates" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -117,6 +145,16 @@ Deno.serve(async (req) => {
     const pricing = fareConfig[sType];
     const distance_km = haversineKm(pickup_lat, pickup_lng, dropoff_lat, dropoff_lng);
 
+    // Validate distance is reasonable
+    if (distance_km < 0.1) {
+      return new Response(JSON.stringify({
+        error: "Pickup and dropoff locations are too close (minimum 100m required)",
+        code: "DISTANCE_TOO_SHORT",
+      }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Check surge based on active rides
     const { count } = await supabase
       .from("rides")
@@ -141,7 +179,15 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: (e as Error).message }), {
+    const errorMsg = (e as Error).message;
+    console.error("Calculate fare error:", errorMsg);
+    console.error("Full error:", e);
+    
+    return new Response(JSON.stringify({ 
+      error: errorMsg || "Failed to calculate fare",
+      code: "CALCULATION_ERROR",
+      timestamp: new Date().toISOString(),
+    }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

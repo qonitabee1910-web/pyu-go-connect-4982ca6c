@@ -12,6 +12,7 @@ import { reverseGeocode } from "@/lib/location";
 import { RideRatingDialog } from "@/components/ride/RideRatingDialog";
 import { MapPin, Zap } from "lucide-react";
 import GuestAccessCard from "@/components/GuestAccessCard";
+import { calculateFareLocally } from "@/lib/fareCalculation";
 
 export default function Ride() {
   const { user, isLoading: authLoading } = useAuth();
@@ -64,23 +65,99 @@ export default function Ride() {
 
   // Calculate fare when service type is selected
   const calculateFare = async (sType: string) => {
-    if (!pickup || !dropoff) return;
+    if (!pickup || !dropoff) {
+      toast.error("Please select both pickup and dropoff locations");
+      return;
+    }
+    
+    // Validate coordinates are numbers
+    if (typeof pickup.lat !== 'number' || typeof pickup.lng !== 'number' ||
+        typeof dropoff.lat !== 'number' || typeof dropoff.lng !== 'number') {
+      toast.error("Invalid location coordinates");
+      return;
+    }
+    
     setFareLoading(true);
+    
+    const requestBody = {
+      pickup_lat: pickup.lat, 
+      pickup_lng: pickup.lng,
+      dropoff_lat: dropoff.lat, 
+      dropoff_lng: dropoff.lng,
+      service_type: sType,
+    };
+    
+    console.log("Sending fare calculation request:", requestBody);
+    
     try {
+      // Try Edge Function first
       const { data, error } = await supabase.functions.invoke("calculate-fare", {
-        body: {
-          pickup_lat: pickup.lat, pickup_lng: pickup.lng,
-          dropoff_lat: dropoff.lat, dropoff_lng: dropoff.lng,
-          service_type: sType,
-        },
+        body: requestBody,
       });
-      if (error) throw error;
+      
+      console.log("Fare calculation response:", { data, error });
+      
+      if (error) {
+        console.warn("Edge Function failed, using fallback calculation", error);
+        // Fallback to client-side calculation
+        const fallbackData = calculateFareLocally(
+          pickup.lat,
+          pickup.lng,
+          dropoff.lat,
+          dropoff.lng,
+          sType as "bike" | "bike_women" | "car"
+        );
+        
+        setFare(fallbackData.fare);
+        setDistanceKm(fallbackData.distance_km);
+        setRideStatus("confirming");
+        toast.info("Fare calculated locally");
+        return;
+      }
+      
+      if (!data || typeof data.fare !== 'number') {
+        throw new Error("Invalid response from server: " + JSON.stringify(data));
+      }
+      
       setFare(data.fare);
       setDistanceKm(data.distance_km);
       setRideStatus("confirming");
     } catch (err: any) {
       console.error("Fare calculation failed:", err);
-      toast.error("Failed to calculate fare");
+      console.error("Error details:", {
+        message: err?.message,
+        errorDescription: err?.error_description,
+        status: err?.status,
+      });
+      
+      try {
+        // Try fallback calculation as last resort
+        console.log("Attempting fallback fare calculation...");
+        const fallbackData = calculateFareLocally(
+          pickup.lat,
+          pickup.lng,
+          dropoff.lat,
+          dropoff.lng,
+          sType as "bike" | "bike_women" | "car"
+        );
+        
+        setFare(fallbackData.fare);
+        setDistanceKm(fallbackData.distance_km);
+        setRideStatus("confirming");
+        toast.info("Using local fare estimate");
+      } catch (fallbackErr: any) {
+        // Show specific error message if available
+        const errorMsg = err?.error_description || err?.message || "Failed to calculate fare";
+        
+        // Check if it's a service zone error
+        if (errorMsg.includes("zona layanan") || errorMsg.includes("service_zone")) {
+          toast.error("Location is outside service area");
+        } else if (errorMsg.includes("too close") || errorMsg.includes("DISTANCE_TOO_SHORT")) {
+          toast.error("Pickup and dropoff are too close");
+        } else {
+          toast.error(errorMsg);
+        }
+      }
     } finally {
       setFareLoading(false);
     }
