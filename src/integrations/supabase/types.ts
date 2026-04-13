@@ -547,8 +547,75 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_config_audit_logs: {
+        Row: {
+          action: string
+          changed_by: string | null
+          created_at: string | null
+          environment: string
+          gateway: string
+          id: string
+          new_values: Json | null
+          old_values: Json | null
+        }
+        Insert: {
+          action: string
+          changed_by?: string | null
+          created_at?: string | null
+          environment: string
+          gateway: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Update: {
+          action?: string
+          changed_by?: string | null
+          created_at?: string | null
+          environment?: string
+          gateway?: string
+          id?: string
+          new_values?: Json | null
+          old_values?: Json | null
+        }
+        Relationships: []
+      }
+      payment_gateway_configs: {
+        Row: {
+          client_key: string
+          created_at: string | null
+          environment: string
+          gateway: string
+          id: string
+          is_active: boolean | null
+          server_key_encrypted: string
+          updated_at: string | null
+        }
+        Insert: {
+          client_key: string
+          created_at?: string | null
+          environment: string
+          gateway: string
+          id?: string
+          is_active?: boolean | null
+          server_key_encrypted: string
+          updated_at?: string | null
+        }
+        Update: {
+          client_key?: string
+          created_at?: string | null
+          environment?: string
+          gateway?: string
+          id?: string
+          is_active?: boolean | null
+          server_key_encrypted?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       payment_settings: {
         Row: {
+          active_environment: string | null
           commission_rate: number
           config: Json
           created_at: string
@@ -559,6 +626,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          active_environment?: string | null
           commission_rate?: number
           config?: Json
           created_at?: string
@@ -569,6 +637,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          active_environment?: string | null
           commission_rate?: number
           config?: Json
           created_at?: string
