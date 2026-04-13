@@ -1,59 +1,39 @@
 
 
-# Fix Build Errors + Add Missing Shuttle Pickup Features
+# Simplify Shuttle Flow: Remove Dropoff Step
 
-## A. Build Error Fixes
+## Current vs Desired Flow
 
-### 1. `DriverEarningsAnalytics.tsx` (line 133)
-Recharts `Tooltip` formatter receives `ValueType` (string | number). Fix: cast `value` to `Number()`.
+```text
+Current:  Routes → Date → Service → Vehicle → Schedule → Pickup → Dropoff → Seats → Guest → Payment → Confirm
+Desired:  Routes → Date → Service → Vehicle → Schedule → Pickup → Seats → Guest → Payment → Confirm
+```
 
-### 2. `useAuth.ts` (line 69)
-`USER_DELETED` is not a valid `AuthChangeEvent`. Remove it from the comparison — handle it under the `else` branch or just remove the check.
+The "dropoff" step is unnecessary — the route destination already defines where the passenger goes. Removing it simplifies the booking to 10 clean steps.
 
-### 3. `AdminDrivers.tsx` (lines 115, 119)
-Filter values are `string` but `.eq()` expects the enum type. Fix: cast with `as any` on the query or type the filter variables properly.
+## Changes
 
-### 4. `DriverAdminService.ts` (lines 73-74, 94, 111)
-- Lines 73-74: Same enum casting issue — add `as any` to `.eq()` calls.
-- Line 94: `vehicles(count)` returns `{count: number}` not `any[]`. Fix the `DriverWithStats` interface to have `vehicles?: {count: number}` or cast through `unknown`.
-- Line 111: `"on_ride"` is not in driver_status enum. Remove or change to `"busy"`.
+### 1. `src/pages/Shuttle.tsx`
+- Remove `"dropoff"` from the `Step` type
+- Remove `selectedDropoffPoint` state, `handleSelectDropoffPoint`, `handleSkipDropoff`
+- Change `handleSelectPickupPoint` to go directly to `"seats"` instead of `"dropoff"`
+- Remove the dropoff rendering block and `DropoffSelector` import
+- Update `goBack` logic: from `"seats"` go back to `"pickup"` (or `"schedule"` if no rayons)
+- Remove `dropoffPointName` from `ShuttleTicket` props
 
-## B. Shuttle Pickup Enhancements
+### 2. `src/components/shuttle/ShuttleTicket.tsx`
+- Remove `dropoffPointName` prop (route destination is already shown)
 
-### 1. Drop-off Point Selection
-Currently only pickup points exist. Add a **drop-off selection step** after pickup, reusing the same `PickupSelector` component pattern but for destination points. This requires:
-- New step `"dropoff"` in the flow
-- Query drop-off points (can reuse `shuttle_pickup_points` with a `type` column, or use destination rayon's points)
-- Show selected drop-off in ticket confirmation
+### 3. Delete `src/components/shuttle/DropoffSelector.tsx`
+- No longer needed
 
-### 2. Pickup Point Details Enhancement
-- Show pickup point location on a mini map (Leaflet) in `PickupSelector`
-- Add estimated pickup time calculation based on `departure_time` and `stop_order`
+No database changes required.
 
-### 3. Pickup Status Tracking in History
-The `shuttle_bookings` table already has `pickup_status` and `pickup_driver_name/plate` columns. Display these in the booking history cards with status badges (pending → picked_up → delivered).
+## Files
 
-### 4. Pickup Point Admin Management
-Add pickup point CRUD in `AdminShuttles.tsx` under a new "Pickup Points" tab.
-
----
-
-## Files to Change
-
-| File | Changes |
-|------|---------|
-| `src/components/admin/DriverEarningsAnalytics.tsx` | Cast tooltip value to Number |
-| `src/hooks/useAuth.ts` | Remove `USER_DELETED` check |
-| `src/pages/admin/AdminDrivers.tsx` | Add `as any` to enum filter calls |
-| `src/services/DriverAdminService.ts` | Fix types, remove `on_ride`, cast queries |
-| `src/pages/Shuttle.tsx` | Add dropoff step, enhanced pickup flow |
-| `src/components/shuttle/PickupSelector.tsx` | Add mini-map, ETA display |
-| `src/components/shuttle/DropoffSelector.tsx` | New component for drop-off point selection |
-| `src/components/shuttle/ShuttleTicket.tsx` | Show drop-off point name |
-| `src/pages/admin/AdminShuttles.tsx` | Add "Pickup Points" tab |
-| `src/components/admin/shuttle/PickupPointsTab.tsx` | New: CRUD for pickup points |
-
-### Database Changes
-- Add `point_type` column to `shuttle_pickup_points` (values: 'pickup', 'dropoff') with default 'pickup' — via migration
-- Or simply reuse existing pickup points and let the drop-off be the route destination
+| File | Change |
+|------|--------|
+| `src/pages/Shuttle.tsx` | Remove dropoff step, simplify flow |
+| `src/components/shuttle/ShuttleTicket.tsx` | Remove dropoffPointName prop |
+| `src/components/shuttle/DropoffSelector.tsx` | Delete file |
 
