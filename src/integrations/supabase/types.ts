@@ -338,6 +338,36 @@ export type Database = {
           },
         ]
       }
+      external_drivers: {
+        Row: {
+          created_at: string | null
+          full_name: string
+          id: string
+          is_active: boolean | null
+          phone: string | null
+          plate_number: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          full_name: string
+          id?: string
+          is_active?: boolean | null
+          phone?: string | null
+          plate_number: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          full_name?: string
+          id?: string
+          is_active?: boolean | null
+          phone?: string | null
+          plate_number?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       hotel_bookings: {
         Row: {
           booking_ref: string
@@ -831,6 +861,8 @@ export type Database = {
           dropoff_lat: number
           dropoff_lng: number
           dropoff_location: unknown
+          external_driver_name: string | null
+          external_driver_plate: string | null
           fare: number | null
           id: string
           pickup_address: string | null
@@ -850,6 +882,8 @@ export type Database = {
           dropoff_lat: number
           dropoff_lng: number
           dropoff_location?: unknown
+          external_driver_name?: string | null
+          external_driver_plate?: string | null
           fare?: number | null
           id?: string
           pickup_address?: string | null
@@ -869,6 +903,8 @@ export type Database = {
           dropoff_lat?: number
           dropoff_lng?: number
           dropoff_location?: unknown
+          external_driver_name?: string | null
+          external_driver_plate?: string | null
           fare?: number | null
           id?: string
           pickup_address?: string | null
@@ -935,7 +971,10 @@ export type Database = {
           id: string
           payment_method: string | null
           payment_status: string
+          pickup_driver_name: string | null
+          pickup_driver_plate: string | null
           pickup_point_id: string | null
+          pickup_status: string | null
           rayon_id: string | null
           schedule_id: string
           seat_count: number
@@ -952,7 +991,10 @@ export type Database = {
           id?: string
           payment_method?: string | null
           payment_status?: string
+          pickup_driver_name?: string | null
+          pickup_driver_plate?: string | null
           pickup_point_id?: string | null
+          pickup_status?: string | null
           rayon_id?: string | null
           schedule_id: string
           seat_count?: number
@@ -969,7 +1011,10 @@ export type Database = {
           id?: string
           payment_method?: string | null
           payment_status?: string
+          pickup_driver_name?: string | null
+          pickup_driver_plate?: string | null
           pickup_point_id?: string | null
+          pickup_status?: string | null
           rayon_id?: string | null
           schedule_id?: string
           seat_count?: number
