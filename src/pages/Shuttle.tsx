@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { format, isSameDay } from "date-fns";
 import { id as localeId } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 import ShuttleTicket from "@/components/shuttle/ShuttleTicket";
 import { SeatInfo } from "@/components/shuttle/SeatLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -119,7 +120,8 @@ export default function Shuttle() {
         .eq("route_id", selectedRouteId)
         .order("name");
       if (error) throw error;
-      const { data: points } = await (supabase as any).from("shuttle_pickup_points").select("*").eq("active", true).order("stop_order");
+      const rayonIds = data.map((r: any) => r.id);
+      const { data: points } = await (supabase as any).from("shuttle_pickup_points").select("*").eq("active", true).in("rayon_id", rayonIds).order("stop_order");
       return data.map((r: any) => ({ ...r, pickup_points: (points || []).filter((p: any) => p.rayon_id === r.id) }));
     },
     enabled: !!selectedRouteId,
@@ -511,6 +513,22 @@ export default function Shuttle() {
           </TabsList>
 
           <TabsContent value="booking" className="space-y-4">
+            {step !== "confirmation" && (() => {
+              const steps: Step[] = ["routes", "date", "service", "vehicle", "schedule", "pickup", "seats", "guest_info", "payment", "confirmation"];
+              const currentIdx = steps.indexOf(step);
+              const progress = ((currentIdx + 1) / steps.length) * 100;
+              return (
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                      Langkah {currentIdx + 1} dari {steps.length}
+                    </span>
+                    <span className="text-[10px] font-mono text-muted-foreground">{Math.round(progress)}%</span>
+                  </div>
+                  <Progress value={progress} className="h-1.5" />
+                </div>
+              );
+            })()}
             {step === "routes" && (
               <RouteSelector 
                 routes={routes} 

@@ -152,10 +152,13 @@ export function PickupSelector({
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-900 line-clamp-1">{p.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {p.departure_time ? `${p.departure_time} WIB • ` : ""}
-                      {p.distance_meters >= 1000 
-                        ? `${(p.distance_meters / 1000).toFixed(1)} km` 
-                        : `${p.distance_meters}m`}
+                      {p.departure_time ? `${p.departure_time} WIB` : ""}
+                      {p.departure_time && p.distance_meters > 0 ? " • " : ""}
+                      {p.distance_meters > 0
+                        ? p.distance_meters >= 1000 
+                          ? `${(p.distance_meters / 1000).toFixed(1)} km` 
+                          : `${p.distance_meters}m`
+                        : ""}
                     </p>
                   </div>
                 </div>
