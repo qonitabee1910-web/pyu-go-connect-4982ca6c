@@ -22,12 +22,12 @@ import { ServiceTypeSelector } from "@/components/shuttle/ServiceTypeSelector";
 import { VehicleTypeSelector } from "@/components/shuttle/VehicleTypeSelector";
 import { ScheduleSelector } from "@/components/shuttle/ScheduleSelector";
 import { PickupSelector } from "@/components/shuttle/PickupSelector";
-import { DropoffSelector } from "@/components/shuttle/DropoffSelector";
+
 import { SeatSelector } from "@/components/shuttle/SeatSelector";
 import { GuestInfoForm } from "@/components/shuttle/GuestInfoForm";
 import { PaymentForm } from "@/components/shuttle/PaymentForm";
 
-type Step = "routes" | "date" | "service" | "vehicle" | "schedule" | "pickup" | "dropoff" | "seats" | "guest_info" | "payment" | "confirmation";
+type Step = "routes" | "date" | "service" | "vehicle" | "schedule" | "pickup" | "seats" | "guest_info" | "payment" | "confirmation";
 
 const generateUUID = (): string => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -68,7 +68,7 @@ export default function Shuttle() {
   const [selectedScheduleSeats, setSelectedScheduleSeats] = useState(0);
   const [selectedScheduleDeparture, setSelectedScheduleDeparture] = useState("");
   const [selectedPickupPoint, setSelectedPickupPoint] = useState<any>(null);
-  const [selectedDropoffPoint, setSelectedDropoffPoint] = useState<any>(null);
+  
   const [selectedRayonId, setSelectedRayonId] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [guestName, setGuestName] = useState("");
@@ -307,16 +307,6 @@ export default function Shuttle() {
     setSelectedRayonId(rayon.id);
     setSelectedPickupPoint(point);
     setSelectedScheduleFare(Number(point.fare) || selectedRoute?.base_fare || 0);
-    setStep("dropoff");
-  };
-
-  const handleSelectDropoffPoint = (rayon: any, point: any) => {
-    setSelectedDropoffPoint(point);
-    setStep("seats");
-  };
-
-  const handleSkipDropoff = () => {
-    setSelectedDropoffPoint(null);
     setStep("seats");
   };
 
@@ -462,7 +452,6 @@ export default function Shuttle() {
     setSelectedVehicleType(null);
     setSelectedScheduleId(null);
     setSelectedPickupPoint(null);
-    setSelectedDropoffPoint(null);
     setSelectedRayonId(null);
     setSelectedSeats([]);
     setGuestName("");
@@ -481,8 +470,7 @@ export default function Shuttle() {
     else if (step === "vehicle") setStep("service");
     else if (step === "schedule") setStep("vehicle");
     else if (step === "pickup") setStep("schedule");
-    else if (step === "dropoff") setStep("pickup");
-    else if (step === "seats") setStep(selectedDropoffPoint ? "dropoff" : (rayons && (rayons as any[]).length > 0 ? "pickup" : "schedule"));
+    else if (step === "seats") setStep(rayons && (rayons as any[]).length > 0 ? "pickup" : "schedule");
     else if (step === "guest_info") {
       releaseSeats();
       setStep("seats");
@@ -583,17 +571,6 @@ export default function Shuttle() {
               />
             )}
 
-            {step === "dropoff" && (
-              <DropoffSelector
-                rayons={rayons}
-                selectedRoute={selectedRoute}
-                selectedScheduleDeparture={selectedScheduleDeparture}
-                onSelectDropoffPoint={handleSelectDropoffPoint}
-                onSkip={handleSkipDropoff}
-                onBack={goBack}
-              />
-            )}
-
             {step === "seats" && (
               <SeatSelector 
                 selectedRoute={selectedRoute}
@@ -646,7 +623,6 @@ export default function Shuttle() {
                   totalFare={totalFare}
                   paymentStatus={paymentStatus}
                   pickupPointName={selectedPickupPoint?.name}
-                  dropoffPointName={selectedDropoffPoint?.name}
                 />
                 <Button variant="outline" className="w-full" onClick={handleReset}>Pesan Lagi</Button>
               </div>
