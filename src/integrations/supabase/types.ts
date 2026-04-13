@@ -244,6 +244,7 @@ export type Database = {
           current_lat: number | null
           current_lng: number | null
           current_vehicle_id: string | null
+          email: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
           id: string
@@ -274,6 +275,7 @@ export type Database = {
           current_lat?: number | null
           current_lng?: number | null
           current_vehicle_id?: string | null
+          email?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
@@ -304,6 +306,7 @@ export type Database = {
           current_lat?: number | null
           current_lng?: number | null
           current_vehicle_id?: string | null
+          email?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
