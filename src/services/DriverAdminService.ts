@@ -70,8 +70,8 @@ export class DriverAdminService {
     );
 
     // Apply filters
-    if (status) query = query.eq("status", status);
-    if (registration_status) query = query.eq("registration_status", registration_status);
+    if (status) query = query.eq("status", status as any);
+    if (registration_status) query = query.eq("registration_status", registration_status as any);
 
     if (search) {
       query = query.or(`full_name.ilike.%${search}%,phone.ilike.%${search}%,email.ilike.%${search}%`);
@@ -91,7 +91,7 @@ export class DriverAdminService {
     if (error) throw new Error(`Failed to fetch drivers: ${error.message}`);
 
     return {
-      drivers: (data || []) as DriverWithStats[],
+      drivers: (data || []) as unknown as DriverWithStats[],
       total: count || 0,
       hasMore: (count || 0) > offset + limit,
     };
@@ -108,7 +108,7 @@ export class DriverAdminService {
       supabase.from("rides").select("id, fare", { count: "exact" }).eq("status", "completed"),
     ]);
 
-    const activeCount = (await supabase.from("drivers").select("id", { count: "exact" }).in("status", ["available", "on_ride"])).count || 0;
+    const activeCount = (await supabase.from("drivers").select("id", { count: "exact" }).in("status", ["available", "busy"] as any)).count || 0;
     const pendingCount = (await supabase.from("drivers").select("id", { count: "exact" }).eq("registration_status", "pending")).count || 0;
     const rejectedCount = (await supabase.from("drivers").select("id", { count: "exact" }).eq("registration_status", "rejected")).count || 0;
 

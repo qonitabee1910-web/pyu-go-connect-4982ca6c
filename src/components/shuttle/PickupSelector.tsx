@@ -53,6 +53,29 @@ export function PickupSelector({
     );
   }
 
+  // Filter only pickup-type points
+  const pickupRayons = rayons.map(r => ({
+    ...r,
+    pickup_points: (r.pickup_points || []).filter((p: any) => !p.point_type || p.point_type === 'pickup')
+  })).filter(r => r.pickup_points.length > 0);
+
+  if (pickupRayons.length === 0) {
+    return (
+      <div className="space-y-3">
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-4 flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold text-sm text-amber-900">Tidak ada titik jemput tersedia</p>
+              <p className="text-xs text-amber-700 mt-1">Silakan pilih jadwal lain atau hubungi layanan pelanggan</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Button variant="outline" className="w-full" onClick={onBack}>Kembali</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <Card>
@@ -65,44 +88,38 @@ export function PickupSelector({
         </CardHeader>
       </Card>
       
-      {rayons?.map((rayon) => (
+      {pickupRayons.map((rayon) => (
         <div key={rayon.id} className="space-y-2">
           <div className="px-1">
             <h3 className="text-sm font-bold text-slate-600">{rayon.name}</h3>
             {rayon.description && <p className="text-xs text-muted-foreground">{rayon.description}</p>}
           </div>
           <div className="space-y-1">
-            {rayon.pickup_points && rayon.pickup_points.length > 0 ? (
-              rayon.pickup_points.map((p: any) => (
-                <button 
-                  key={p.id} 
-                  onClick={() => onSelectPickupPoint(rayon, p)}
-                  className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:bg-accent/50 hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3 flex-1 text-left">
-                    <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg min-w-fit">
-                      J{p.stop_order}
-                    </span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-slate-900 line-clamp-1">{p.name}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {p.departure_time ? `${p.departure_time} WIB • ` : ""}
-                        {p.distance_meters >= 1000 
-                          ? `${(p.distance_meters / 1000).toFixed(1)} km` 
-                          : `${p.distance_meters}m`}
-                      </p>
-                    </div>
-                  </div>
-                  <span className="font-bold text-sm text-primary whitespace-nowrap ml-2">
-                    Rp {Number(p.fare || 0).toLocaleString("id-ID")}
+            {rayon.pickup_points.map((p: any) => (
+              <button 
+                key={p.id} 
+                onClick={() => onSelectPickupPoint(rayon, p)}
+                className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:bg-accent/50 hover:border-primary/30 transition-colors"
+              >
+                <div className="flex items-center gap-3 flex-1 text-left">
+                  <span className="text-xs font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg min-w-fit">
+                    J{p.stop_order}
                   </span>
-                </button>
-              ))
-            ) : (
-              <div className="p-3 text-center text-xs text-muted-foreground bg-slate-50 rounded-lg">
-                Tidak ada titik jemput di zona ini
-              </div>
-            )}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-slate-900 line-clamp-1">{p.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {p.departure_time ? `${p.departure_time} WIB • ` : ""}
+                      {p.distance_meters >= 1000 
+                        ? `${(p.distance_meters / 1000).toFixed(1)} km` 
+                        : `${p.distance_meters}m`}
+                    </p>
+                  </div>
+                </div>
+                <span className="font-bold text-sm text-primary whitespace-nowrap ml-2">
+                  Rp {Number(p.fare || 0).toLocaleString("id-ID")}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
       ))}

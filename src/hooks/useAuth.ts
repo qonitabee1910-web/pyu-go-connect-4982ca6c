@@ -66,7 +66,7 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sessionData) => {
       if (!mounted) return;
 
-      if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+      if (event === "SIGNED_OUT") {
         setSession(null);
         setRole(null);
       } else if (sessionData) {

@@ -16,6 +16,7 @@ interface ShuttleTicketProps {
   totalFare: number;
   paymentStatus: string;
   pickupPointName?: string;
+  dropoffPointName?: string;
 }
 
 export default function ShuttleTicket({
@@ -30,6 +31,7 @@ export default function ShuttleTicket({
   totalFare,
   paymentStatus,
   pickupPointName,
+  dropoffPointName,
 }: ShuttleTicketProps) {
   const ticketRef = useRef<HTMLDivElement>(null);
 
@@ -71,6 +73,7 @@ export default function ShuttleTicket({
           <Row label="From" value={origin} />
           <Row label="To" value={destination} />
           {pickupPointName && <Row label="Pickup" value={pickupPointName} />}
+          {dropoffPointName && <Row label="Dropoff" value={dropoffPointName} />}
           <Row label="Departure" value={departure} />
           <Row label="Seats" value={String(seatCount)} />
           <Row label="Passenger" value={guestName} />

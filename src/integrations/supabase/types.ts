@@ -186,6 +186,62 @@ export type Database = {
           },
         ]
       }
+      driver_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          driver_id: string
+          expiry_date: string | null
+          file_url: string
+          id: string
+          rejected_at: string | null
+          rejection_reason: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          driver_id: string
+          expiry_date?: string | null
+          file_url: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          driver_id?: string
+          expiry_date?: string | null
+          file_url?: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_documents_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       driver_earnings: {
         Row: {
           commission_amount: number
@@ -237,20 +293,105 @@ export type Database = {
           },
         ]
       }
+      driver_settings: {
+        Row: {
+          auto_accept_rides: boolean
+          auto_accept_timeout_seconds: number
+          available_friday: boolean
+          available_monday: boolean
+          available_saturday: boolean
+          available_sunday: boolean
+          available_thursday: boolean
+          available_tuesday: boolean
+          available_wednesday: boolean
+          created_at: string
+          driver_id: string
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          emergency_contact_relationship: string | null
+          id: string
+          preferred_payment_method: string
+          service_area_radius_km: number
+          updated_at: string
+          working_hours_enabled: boolean
+          working_hours_end: string | null
+          working_hours_start: string | null
+        }
+        Insert: {
+          auto_accept_rides?: boolean
+          auto_accept_timeout_seconds?: number
+          available_friday?: boolean
+          available_monday?: boolean
+          available_saturday?: boolean
+          available_sunday?: boolean
+          available_thursday?: boolean
+          available_tuesday?: boolean
+          available_wednesday?: boolean
+          created_at?: string
+          driver_id: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          id?: string
+          preferred_payment_method?: string
+          service_area_radius_km?: number
+          updated_at?: string
+          working_hours_enabled?: boolean
+          working_hours_end?: string | null
+          working_hours_start?: string | null
+        }
+        Update: {
+          auto_accept_rides?: boolean
+          auto_accept_timeout_seconds?: number
+          available_friday?: boolean
+          available_monday?: boolean
+          available_saturday?: boolean
+          available_sunday?: boolean
+          available_thursday?: boolean
+          available_tuesday?: boolean
+          available_wednesday?: boolean
+          created_at?: string
+          driver_id?: string
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
+          emergency_contact_relationship?: string | null
+          id?: string
+          preferred_payment_method?: string
+          service_area_radius_km?: number
+          updated_at?: string
+          working_hours_enabled?: boolean
+          working_hours_end?: string | null
+          working_hours_start?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "driver_settings_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: true
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       drivers: {
         Row: {
+          address: string | null
           avatar_url: string | null
           created_at: string
           current_lat: number | null
           current_lng: number | null
           current_vehicle_id: string | null
+          date_of_birth: string | null
           email: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
           gender: Database["public"]["Enums"]["gender_type"]
           id: string
           is_verified: boolean
           ktp_number: string | null
           ktp_url: string | null
+          ktp_verified_at: string | null
           license_number: string | null
           location: unknown
           phone: string
@@ -263,25 +404,32 @@ export type Database = {
             | Database["public"]["Enums"]["registration_status"]
             | null
           rejection_reason: string | null
+          sim_expiry_date: string | null
           sim_url: string | null
+          sim_verified_at: string | null
           status: Database["public"]["Enums"]["driver_status"]
           updated_at: string
-          user_id: string | null
+          user_id: string
           vehicle_stnk_url: string | null
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
           current_vehicle_id?: string | null
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name: string
           gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
           is_verified?: boolean
           ktp_number?: string | null
           ktp_url?: string | null
+          ktp_verified_at?: string | null
           license_number?: string | null
           location?: unknown
           phone: string
@@ -294,25 +442,32 @@ export type Database = {
             | Database["public"]["Enums"]["registration_status"]
             | null
           rejection_reason?: string | null
+          sim_expiry_date?: string | null
           sim_url?: string | null
+          sim_verified_at?: string | null
           status?: Database["public"]["Enums"]["driver_status"]
           updated_at?: string
-          user_id?: string | null
+          user_id: string
           vehicle_stnk_url?: string | null
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
           created_at?: string
           current_lat?: number | null
           current_lng?: number | null
           current_vehicle_id?: string | null
+          date_of_birth?: string | null
           email?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           gender?: Database["public"]["Enums"]["gender_type"]
           id?: string
           is_verified?: boolean
           ktp_number?: string | null
           ktp_url?: string | null
+          ktp_verified_at?: string | null
           license_number?: string | null
           location?: unknown
           phone?: string
@@ -325,10 +480,12 @@ export type Database = {
             | Database["public"]["Enums"]["registration_status"]
             | null
           rejection_reason?: string | null
+          sim_expiry_date?: string | null
           sim_url?: string | null
+          sim_verified_at?: string | null
           status?: Database["public"]["Enums"]["driver_status"]
           updated_at?: string
-          user_id?: string | null
+          user_id?: string
           vehicle_stnk_url?: string | null
         }
         Relationships: [
@@ -684,32 +841,56 @@ export type Database = {
       }
       profiles: {
         Row: {
+          address: string | null
           avatar_url: string | null
+          city: string | null
+          country: string | null
           created_at: string
+          date_of_birth: string | null
+          email_verified: boolean | null
           full_name: string | null
           gender: Database["public"]["Enums"]["gender_type"] | null
           id: string
+          id_number: string | null
+          nationality: string | null
           phone: string | null
+          phone_verified: boolean | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          email_verified?: boolean | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
+          id_number?: string | null
+          nationality?: string | null
           phone?: string | null
+          phone_verified?: boolean | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          address?: string | null
           avatar_url?: string | null
+          city?: string | null
+          country?: string | null
           created_at?: string
+          date_of_birth?: string | null
+          email_verified?: boolean | null
           full_name?: string | null
           gender?: Database["public"]["Enums"]["gender_type"] | null
           id?: string
+          id_number?: string | null
+          nationality?: string | null
           phone?: string | null
+          phone_verified?: boolean | null
           updated_at?: string
           user_id?: string
         }
@@ -968,10 +1149,13 @@ export type Database = {
       shuttle_bookings: {
         Row: {
           booking_ref: string
+          booking_status: string | null
           created_at: string
+          email: string | null
           guest_name: string | null
           guest_phone: string | null
           id: string
+          passenger_count: number | null
           payment_method: string | null
           payment_status: string
           pickup_driver_name: string | null
@@ -981,6 +1165,7 @@ export type Database = {
           rayon_id: string | null
           schedule_id: string
           seat_count: number
+          special_requests: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_fare: number
           updated_at: string
@@ -988,10 +1173,13 @@ export type Database = {
         }
         Insert: {
           booking_ref?: string
+          booking_status?: string | null
           created_at?: string
+          email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
+          passenger_count?: number | null
           payment_method?: string | null
           payment_status?: string
           pickup_driver_name?: string | null
@@ -1001,6 +1189,7 @@ export type Database = {
           rayon_id?: string | null
           schedule_id: string
           seat_count?: number
+          special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_fare?: number
           updated_at?: string
@@ -1008,10 +1197,13 @@ export type Database = {
         }
         Update: {
           booking_ref?: string
+          booking_status?: string | null
           created_at?: string
+          email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
           id?: string
+          passenger_count?: number | null
           payment_method?: string | null
           payment_status?: string
           pickup_driver_name?: string | null
@@ -1021,6 +1213,7 @@ export type Database = {
           rayon_id?: string | null
           schedule_id?: string
           seat_count?: number
+          special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_fare?: number
           updated_at?: string
@@ -1059,6 +1252,7 @@ export type Database = {
           fare: number
           id: string
           name: string
+          point_type: string
           rayon_id: string
           stop_order: number
           updated_at: string
@@ -1071,6 +1265,7 @@ export type Database = {
           fare?: number
           id?: string
           name: string
+          point_type?: string
           rayon_id: string
           stop_order?: number
           updated_at?: string
@@ -1083,6 +1278,7 @@ export type Database = {
           fare?: number
           id?: string
           name?: string
+          point_type?: string
           rayon_id?: string
           stop_order?: number
           updated_at?: string
@@ -1334,6 +1530,116 @@ export type Database = {
         }
         Relationships: []
       }
+      user_settings: {
+        Row: {
+          created_at: string
+          currency: string
+          data_sharing_analytics: boolean
+          id: string
+          language: string
+          notification_email: boolean
+          notification_promotions: boolean
+          notification_push: boolean
+          notification_ride_updates: boolean
+          notification_sms: boolean
+          privacy_show_location: boolean
+          privacy_show_profile: boolean
+          theme: string
+          two_factor_enabled: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          data_sharing_analytics?: boolean
+          id?: string
+          language?: string
+          notification_email?: boolean
+          notification_promotions?: boolean
+          notification_push?: boolean
+          notification_ride_updates?: boolean
+          notification_sms?: boolean
+          privacy_show_location?: boolean
+          privacy_show_profile?: boolean
+          theme?: string
+          two_factor_enabled?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          data_sharing_analytics?: boolean
+          id?: string
+          language?: string
+          notification_email?: boolean
+          notification_promotions?: boolean
+          notification_push?: boolean
+          notification_ride_updates?: boolean
+          notification_sms?: boolean
+          privacy_show_location?: boolean
+          privacy_show_profile?: boolean
+          theme?: string
+          two_factor_enabled?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vehicle_documents: {
+        Row: {
+          created_at: string
+          document_type: string
+          expiry_date: string | null
+          file_url: string
+          id: string
+          rejected_at: string | null
+          rejection_reason: string | null
+          status: string
+          submitted_at: string
+          updated_at: string
+          vehicle_id: string
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          document_type: string
+          expiry_date?: string | null
+          file_url: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          vehicle_id: string
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          document_type?: string
+          expiry_date?: string | null
+          file_url?: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          submitted_at?: string
+          updated_at?: string
+          vehicle_id?: string
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vehicles: {
         Row: {
           capacity: number
@@ -1572,6 +1878,10 @@ export type Database = {
           p_session_id: string
         }
         Returns: boolean
+      }
+      sync_available_seats_on_schedule: {
+        Args: { p_schedule_id: string }
+        Returns: undefined
       }
     }
     Enums: {

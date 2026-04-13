@@ -112,11 +112,11 @@ export default function AdminDrivers() {
 
       // Apply filters
       if (filterStatus !== "all") {
-        query = query.eq("status", filterStatus);
+        query = query.eq("status", filterStatus as any);
       }
 
       if (filterRegistration !== "all") {
-        query = query.eq("registration_status", filterRegistration);
+        query = query.eq("registration_status", filterRegistration as any);
       }
 
       if (searchTerm) {

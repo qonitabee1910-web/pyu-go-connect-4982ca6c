@@ -130,7 +130,7 @@ export function DriverEarningsAnalytics({ driverId }: DriverEarningsAnalyticsPro
                 <XAxis dataKey="date" angle={-45} textAnchor="end" height={80} />
                 <YAxis />
                 <Tooltip
-                  formatter={(value) => `Rp ${new Intl.NumberFormat("id-ID").format(value)}`}
+                  formatter={(value: any) => `Rp ${new Intl.NumberFormat("id-ID").format(Number(value))}`}
                 />
                 <Legend />
                 <Line
