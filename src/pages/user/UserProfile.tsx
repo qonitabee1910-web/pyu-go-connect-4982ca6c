@@ -1,19 +1,17 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import DriverBasicInfoTab from "./tabs/DriverBasicInfoTab";
-import DriverVehiclesTab from "./tabs/DriverVehiclesTab";
-import DriverSettingsTab from "./tabs/DriverSettingsTab";
-import { DriverProfileService } from "@/services/DriverProfileService";
+import UserBasicInfoTab from "./tabs/UserBasicInfoTab";
+import UserSettingsTab from "./tabs/UserSettingsTab";
+import { UserProfileService } from "@/services/UserProfileService";
 
 /**
- * Driver Profile Component
- * Main container for driver profile with three tabs: Basic Info, Vehicles, and Settings
+ * User Profile Component
+ * Main container for user profile with two tabs: Basic Info and Settings
  */
-export default function DriverProfile() {
+export default function UserProfile() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("basic");
 
@@ -21,16 +19,16 @@ export default function DriverProfile() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground">Please log in as a driver</p>
+          <p className="text-muted-foreground">Please log in to view your profile</p>
         </div>
       </div>
     );
   }
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ["driver-profile", user.id],
-    queryFn: () => DriverProfileService.getDriverComplete(user.id),
-    staleTime: 5 * 60 * 1000,
+    queryKey: ["user-profile", user.id],
+    queryFn: () => UserProfileService.getUserProfileWithSettings(user.id),
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
   if (isLoading) {
@@ -45,7 +43,7 @@ export default function DriverProfile() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-destructive">Error loading driver profile</p>
+          <p className="text-destructive">Error loading profile</p>
         </div>
       </div>
     );
@@ -55,7 +53,7 @@ export default function DriverProfile() {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-muted-foreground">Driver profile not found</p>
+          <p className="text-muted-foreground">Profile data not found</p>
         </div>
       </div>
     );
@@ -63,31 +61,23 @@ export default function DriverProfile() {
 
   return (
     <div className="min-h-screen bg-muted/30 pb-20">
-      <div className="max-w-3xl mx-auto px-4 py-6">
-        <h1 className="text-3xl font-bold mb-6">Driver Profile</h1>
+      <div className="max-w-2xl mx-auto px-4 py-6">
+        <h1 className="text-3xl font-bold mb-6">My Profile</h1>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="basic">Basic Info</TabsTrigger>
-            <TabsTrigger value="vehicles">Vehicles</TabsTrigger>
             <TabsTrigger value="settings">Settings</TabsTrigger>
           </TabsList>
 
           <TabsContent value="basic" className="space-y-6">
-            <DriverBasicInfoTab profile={data.profile} driverId={data.profile.id} />
-          </TabsContent>
-
-          <TabsContent value="vehicles" className="space-y-6">
-            <DriverVehiclesTab
-              vehicles={data.vehicles}
-              driverId={data.profile.id}
-            />
+            <UserBasicInfoTab profile={data.profile} userId={user.id} />
           </TabsContent>
 
           <TabsContent value="settings" className="space-y-6">
-            <DriverSettingsTab
+            <UserSettingsTab
               settings={data.settings}
-              driverId={data.profile.id}
+              userId={user.id}
             />
           </TabsContent>
         </Tabs>
