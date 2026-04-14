@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import ForgotPassword from "./pages/ForgotPassword";
 import VerifyEmail from "./pages/VerifyEmail";
+import ResetPassword from "./pages/ResetPassword";
 
 // Lazy-loaded pages
 const Shuttle = lazy(() => import("./pages/Shuttle"));
@@ -83,12 +84,18 @@ const App = () => {
                 <Route path="/shuttle" element={<Shuttle />} />
                 <Route path="/hotel" element={<Hotel />} />
                 <Route path="/hotel/:id" element={<HotelDetail />} />
-                <Route path="/wallet" element={<Wallet />} />
-                <Route path="/profile" element={<Profile />} />
+              </Route>
+
+              <Route element={<ProtectedRoute />}>
+                <Route element={<AppLayout />}>
+                  <Route path="/wallet" element={<Wallet />} />
+                  <Route path="/profile" element={<Profile />} />
+                </Route>
               </Route>
 
               <Route path="/auth" element={<Auth />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/driver/auth" element={<DriverAuth />} />
               <Route path="/forbidden" element={<Forbidden />} />

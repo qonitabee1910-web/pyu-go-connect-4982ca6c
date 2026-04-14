@@ -94,7 +94,6 @@ export default function DriverAuth() {
         const { error } = await signIn(email, password);
         if (error) throw error;
         toast.success("Selamat datang kembali, Kapten!");
-        navigate("/driver");
       } else {
         const { error } = await signUp(email, password, fullName, {
           phone,
