@@ -26,7 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Loader2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Loader2, Zap, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -205,6 +205,12 @@ export default function ServiceTypesTab() {
     return serviceTypes.find((s: any) => s.id === serviceId)?.name || 'Unknown';
   };
 
+  // Group vehicles by service type
+  const groupedByService = (serviceTypes || []).map((service: any) => ({
+    service,
+    vehicles: mappings.filter((m: any) => m.service_type_id === service.id),
+  }));
+
   return (
     <div className="space-y-6">
       {/* Info Card */}
@@ -217,191 +223,216 @@ export default function ServiceTypesTab() {
         </CardHeader>
       </Card>
 
-      {/* Add Button */}
-      <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
-        <DialogTrigger asChild>
-          <Button className="gap-2">
-            <Plus className="w-4 h-4" />
-            Add Service-Vehicle Mapping
-          </Button>
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Service-Vehicle Mapping</DialogTitle>
-            <DialogDescription>
-              Link a vehicle type to a service type
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            {/* Service Type Select */}
-            <div>
-              <label className="text-sm font-medium">Service Type *</label>
-              <select
-                value={formData.service_id}
-                onChange={(e) =>
-                  setFormData({ ...formData, service_id: e.target.value })
-                }
-                className="w-full border rounded-md p-2 mt-1"
-              >
-                <option value="">Select Service Type</option>
-                {serviceTypes.map((st: any) => (
-                  <option key={st.id} value={st.id}>
-                    {st.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+      {/* Service-Vehicle Summary Cards */}
+      <div>
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold">Available Vehicles by Service</h3>
+          <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2 gradient-primary text-primary-foreground">
+                <Plus className="w-4 h-4" />
+                Add Vehicle
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Service-Vehicle Mapping</DialogTitle>
+                <DialogDescription>
+                  Link a vehicle type to a service type
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                {/* Service Type Select */}
+                <div>
+                  <label className="text-sm font-medium">Service Type *</label>
+                  <select
+                    value={formData.service_id}
+                    onChange={(e) =>
+                      setFormData({ ...formData, service_id: e.target.value })
+                    }
+                    className="w-full border rounded-md p-2 mt-1"
+                  >
+                    <option value="">Select Service Type</option>
+                    {serviceTypes.map((st: any) => (
+                      <option key={st.id} value={st.id}>
+                        {st.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            {/* Vehicle Type */}
-            <div>
-              <label className="text-sm font-medium">Vehicle Type Code *</label>
-              <Input
-                placeholder="e.g., mini-car, suv, hiace"
-                value={formData.vehicle_type}
-                onChange={(e) =>
-                  setFormData({ ...formData, vehicle_type: e.target.value })
-                }
-              />
-            </div>
+                {/* Vehicle Type */}
+                <div>
+                  <label className="text-sm font-medium">Vehicle Type Code *</label>
+                  <Input
+                    placeholder="e.g., mini-car, suv, hiace"
+                    value={formData.vehicle_type}
+                    onChange={(e) =>
+                      setFormData({ ...formData, vehicle_type: e.target.value })
+                    }
+                  />
+                </div>
 
-            {/* Vehicle Name */}
-            <div>
-              <label className="text-sm font-medium">Vehicle Name *</label>
-              <Input
-                placeholder="e.g., Mini Car, SUV, Hiace"
-                value={formData.vehicle_name}
-                onChange={(e) =>
-                  setFormData({ ...formData, vehicle_name: e.target.value })
-                }
-              />
-            </div>
+                {/* Vehicle Name */}
+                <div>
+                  <label className="text-sm font-medium">Vehicle Name *</label>
+                  <Input
+                    placeholder="e.g., Mini Car, SUV, Hiace"
+                    value={formData.vehicle_name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, vehicle_name: e.target.value })
+                    }
+                  />
+                </div>
 
-            {/* Capacity */}
-            <div>
-              <label className="text-sm font-medium">Capacity (seats) *</label>
-              <Input
-                type="number"
-                min="1"
-                value={formData.capacity}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    capacity: parseInt(e.target.value) || 1,
-                  })
-                }
-              />
-            </div>
+                {/* Capacity */}
+                <div>
+                  <label className="text-sm font-medium">Capacity (seats) *</label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={formData.capacity}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        capacity: parseInt(e.target.value) || 1,
+                      })
+                    }
+                  />
+                </div>
 
-            {/* Facilities */}
-            <div>
-              <label className="text-sm font-medium">Facilities</label>
-              <Input
-                placeholder="e.g., AC, Radio, WiFi (comma-separated)"
-                value={formData.facilities}
-                onChange={(e) =>
-                  setFormData({ ...formData, facilities: e.target.value })
-                }
-              />
-            </div>
+                {/* Facilities */}
+                <div>
+                  <label className="text-sm font-medium">Facilities</label>
+                  <Input
+                    placeholder="e.g., AC, Radio, WiFi (comma-separated)"
+                    value={formData.facilities}
+                    onChange={(e) =>
+                      setFormData({ ...formData, facilities: e.target.value })
+                    }
+                  />
+                </div>
 
-            <Button
-              onClick={handleAddSubmit}
-              disabled={addMutation.isPending}
-              className="w-full"
-            >
-              {addMutation.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Mapping'
-              )}
-            </Button>
+                <Button
+                  onClick={handleAddSubmit}
+                  disabled={addMutation.isPending}
+                  className="w-full"
+                >
+                  {addMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Adding...
+                    </>
+                  ) : (
+                    'Add Vehicle'
+                  )}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="w-6 h-6 animate-spin mr-2" />
+            Loading vehicles...
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Table */}
-      <Card>
-        <CardContent className="pt-6">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin mr-2" />
-              Loading...
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Service Type</TableHead>
-                  <TableHead>Vehicle Type</TableHead>
-                  <TableHead>Vehicle Name</TableHead>
-                  <TableHead>Capacity</TableHead>
-                  <TableHead>Facilities</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {mappings.map((mapping: ServiceVehicleType) => (
-                  <TableRow key={mapping.id}>
-                    <TableCell className="font-medium">
-                      {getServiceName(mapping.service_type_id)}
-                    </TableCell>
-                    <TableCell>{mapping.vehicle_type}</TableCell>
-                    <TableCell>{mapping.vehicle_name}</TableCell>
-                    <TableCell>{mapping.capacity} seats</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {mapping.facilities.map((f) => (
-                          <Badge key={f} variant="secondary" className="text-xs">
-                            {f}
-                          </Badge>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      {mapping.active ? (
-                        <Badge variant="default" className="bg-green-600">
-                          Active
-                        </Badge>
-                      ) : (
-                        <Badge variant="secondary">Inactive</Badge>
+        ) : groupedByService.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No services configured yet.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-4">
+            {groupedByService.map(({ service, vehicles }) => (
+              <Card key={service.id} className="border">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="text-base">{service.name}</CardTitle>
+                      {service.description && (
+                        <CardDescription className="text-sm mt-1">
+                          {service.description}
+                        </CardDescription>
                       )}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEdit(mapping)}
+                    </div>
+                    <Badge variant="outline" className="ml-2">
+                      {vehicles.length} vehicle{vehicles.length !== 1 ? 's' : ''}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {vehicles.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No vehicles configured for this service.</p>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {vehicles.map((vehicle: ServiceVehicleType) => (
+                        <div
+                          key={vehicle.id}
+                          className="flex items-start justify-between p-3 border rounded-lg hover:bg-accent transition"
                         >
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteMutation.mutate(mapping.id)}
-                          disabled={deleteMutation.isPending}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          {mappings.length === 0 && !isLoading && (
-            <div className="text-center py-8 text-muted-foreground">
-              No service-vehicle mappings yet. Create one to get started.
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-2">
+                              <h4 className="font-semibold text-sm">{vehicle.vehicle_name}</h4>
+                              {vehicle.active && (
+                                <Badge variant="default" className="bg-green-600 text-xs">
+                                  Active
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground space-y-1">
+                              <p>
+                                <span className="font-medium">Type:</span> {vehicle.vehicle_type}
+                              </p>
+                              <p>
+                                <Users className="w-3 h-3 inline mr-1" />
+                                <span className="font-medium">Capacity:</span> {vehicle.capacity} seats
+                              </p>
+                              {vehicle.facilities && vehicle.facilities.length > 0 && (
+                                <div>
+                                  <p className="font-medium mb-1">Facilities:</p>
+                                  <div className="flex flex-wrap gap-1">
+                                    {vehicle.facilities.map((facility) => (
+                                      <Badge
+                                        key={facility}
+                                        variant="secondary"
+                                        className="text-xs"
+                                      >
+                                        {facility}
+                                      </Badge>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2 ml-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEdit(vehicle)}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteMutation.mutate(vehicle.id)}
+                              disabled={deleteMutation.isPending}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Edit Dialog */}
       <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
