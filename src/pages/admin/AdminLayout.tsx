@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet, NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Car, Bus, Users, UserCog, CreditCard, Building2, Settings, ArrowLeft, Send, LogOut } from "lucide-react";
+import { LayoutDashboard, Car, Bus, Users, UserCog, CreditCard, Building2, Settings, Mail, ArrowLeft, Send, LogOut, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +15,9 @@ const adminNav = [
   { to: "/admin/users", icon: Users, label: "Users" },
   { to: "/admin/payments", icon: CreditCard, label: "Payments" },
   { to: "/admin/withdrawals", icon: Send, label: "Withdrawals" },
+  { to: "/admin/email-settings", icon: Mail, label: "Email Config" },
+  { to: "/admin/email-templates", icon: Mail, label: "Email Templates" },
+  { to: "/admin/email-webhook-tracking", icon: Bell, label: "Webhook Events" },
   { to: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 

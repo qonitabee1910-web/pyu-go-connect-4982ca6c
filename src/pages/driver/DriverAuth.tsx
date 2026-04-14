@@ -103,7 +103,26 @@ export default function DriverAuth() {
         });
         if (error) throw error;
         toast.success("Pendaftaran berhasil! Silakan cek email Anda untuk konfirmasi.");
-        setIsLogin(true);
+        
+        // ✅ Send verification email via edge function
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          await fetch(`${supabaseUrl}/functions/v1/send-verification-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              full_name: fullName,
+              is_driver: true,
+            }),
+          });
+        } catch (emailErr) {
+          console.warn("Email notification failed, but user will get verification link via Supabase:", emailErr);
+        }
+        
+        // ✅ Redirect to email verification page
+        sessionStorage.setItem("authRedirect", "/driver/auth");
+        navigate(`/verify-email?email=${encodeURIComponent(email)}`);
       }
     } catch (err: any) {
       toast.error(err.message);

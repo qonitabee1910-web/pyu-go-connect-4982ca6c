@@ -50,6 +50,22 @@ export default function Auth() {
         if (error) throw error;
         toast.success("Silakan cek email Anda untuk konfirmasi akun!");
         
+        // ✅ Send verification email via edge function
+        try {
+          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+          await fetch(`${supabaseUrl}/functions/v1/send-verification-email`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              full_name: fullName,
+              is_driver: false,
+            }),
+          });
+        } catch (emailErr) {
+          console.warn("Email notification failed, but user will get verification link via Supabase:", emailErr);
+        }
+        
         // ✅ Redirect to email verification page
         sessionStorage.setItem("authRedirect", "/auth");
         navigate(`/verify-email?email=${encodeURIComponent(email)}`);
@@ -104,6 +120,18 @@ export default function Auth() {
             {isLogin ? "Daftar" : "Masuk"}
           </button>
         </p>
+
+        {isLogin && (
+          <div className="text-center pt-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={() => navigate("/forgot-password")}
+              className="text-sm text-slate-500 hover:text-primary font-medium"
+            >
+              Lupa Password?
+            </button>
+          </div>
+        )}
 
         <div className="pt-4 border-t border-slate-100 text-center">
           <p className="text-xs text-slate-400 mb-2">Ingin bergabung sebagai mitra?</p>

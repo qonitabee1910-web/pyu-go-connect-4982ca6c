@@ -11,6 +11,7 @@ import { ProtectedRoute } from "@/components/layout/ProtectedRoute";
 import { PageSkeleton } from "@/components/ui/page-skeleton";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
+import ForgotPassword from "./pages/ForgotPassword";
 import VerifyEmail from "./pages/VerifyEmail";
 
 // Lazy-loaded pages
@@ -32,6 +33,9 @@ const AdminDrivers = lazy(() => import("./pages/admin/AdminDrivers"));
 const AdminUsers = lazy(() => import("./pages/admin/AdminUsers"));
 const AdminPayments = lazy(() => import("./pages/admin/AdminPayments"));
 const AdminSettings = lazy(() => import("./pages/admin/AdminSettings"));
+const EmailSettings = lazy(() => import("./pages/admin/EmailSettings"));
+const EmailTemplateEditor = lazy(() => import("./pages/admin/EmailTemplateEditor"));
+const EmailWebhookTracking = lazy(() => import("./pages/admin/EmailWebhookTracking"));
 const AdminHotels = lazy(() => import("./pages/admin/AdminHotels"));
 const AdminWithdrawals = lazy(() => import("./pages/admin/AdminWithdrawals"));
 
@@ -84,6 +88,7 @@ const App = () => {
               </Route>
 
               <Route path="/auth" element={<Auth />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
               <Route path="/verify-email" element={<VerifyEmail />} />
               <Route path="/driver/auth" element={<DriverAuth />} />
               <Route path="/forbidden" element={<Forbidden />} />
@@ -110,6 +115,9 @@ const App = () => {
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="payments" element={<AdminPayments />} />
                   <Route path="withdrawals" element={<AdminWithdrawals />} />
+                  <Route path="email-settings" element={<EmailSettings />} />
+                  <Route path="email-templates" element={<EmailTemplateEditor />} />
+                  <Route path="email-webhook-tracking" element={<EmailWebhookTracking />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
               </Route>
