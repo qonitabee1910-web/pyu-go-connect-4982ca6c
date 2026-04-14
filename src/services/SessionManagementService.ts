@@ -322,13 +322,21 @@ class SessionManagementService {
         event,
         ip_address: ipAddress,
         user_agent: navigator.userAgent,
-        device_info: deviceInfo,  // ✅ Send as object for JSONB column
-        details: details || {},   // ✅ Send as object for JSONB column
+        device_info: deviceInfo,
+        details: details || {},
       };
       
-      await supabase.from("session_audit_logs").insert(auditLog);
+      const { error } = await supabase
+        .from("session_audit_logs")
+        .insert([auditLog]);
+      
+      if (error) {
+        // Audit logging is best-effort, don't throw to prevent session operations from failing
+        console.warn("Failed to log session event - audit logging failed:", error.message);
+      }
     } catch (error) {
-      console.error("Failed to log session event:", error);
+      // Silent fail on audit logging - shouldn't block user operations
+      console.warn("Session event logging error (non-critical):", error);
     }
   }
   

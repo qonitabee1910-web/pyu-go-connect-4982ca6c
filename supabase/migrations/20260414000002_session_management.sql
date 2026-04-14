@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS public.session_audit_logs (
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   session_id TEXT NOT NULL,
   event TEXT NOT NULL CHECK (event IN ('LOGIN', 'LOGOUT', 'TOKEN_REFRESH', 'SESSION_EXTEND', 'SUSPICIOUS_ACTIVITY')),
-  ip_address INET,
+  ip_address TEXT,
   user_agent TEXT,
   device_info JSONB DEFAULT '{}'::jsonb,
   details JSONB DEFAULT '{}'::jsonb,
