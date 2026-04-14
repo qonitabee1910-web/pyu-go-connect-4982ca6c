@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Service-Vehicle type combination for booking
@@ -40,6 +40,7 @@ export interface BookingRequest {
     serviceTypeId: string;
     vehicleType: string;
     rayonId: string;
+    pickupPointId?: string;
     seatNumbers: number[];
     passengerInfo: Array<{
         seatNumber: number;
@@ -85,7 +86,8 @@ class ShuttleService {
             }
 
             // Map to ServiceVehicleOption format
-            return (data || []).map((row: any) => ({
+            const services = (data as any[]) || [];
+            return services.map((row: any) => ({
                 id: row.service_id,
                 serviceName: row.service_name,
                 vehicleType: row.vehicle_type,
@@ -129,26 +131,32 @@ class ShuttleService {
             // Get current pricing rules for service type
             const { data: pricingData, error: pricingError } = await supabase.rpc(
                 'get_current_pricing_for_service',
-                { p_service_id: serviceTypeId }
+                { p_service_type_id: serviceTypeId }
             );
 
-            if (pricingError || !pricingData || pricingData.length === 0) {
+            if (pricingError || !pricingData) {
                 console.error('Error fetching pricing rules:', pricingError);
                 return null;
             }
 
-            const pricing = pricingData[0];
+            const pricing = Array.isArray(pricingData) ? pricingData[0] : (pricingData as any);
+
+            if (!pricing) return null;
 
             // Get rayon surcharge
-            const { data: rayonData } = await supabase
+            const { data: rayonData, error: rayonError } = await supabase
                 .from('shuttle_rayons')
                 .select('id')
                 .eq('id', rayonId)
                 .single();
 
+            if (rayonError || !rayonData) {
+                console.warn('Rayon not found, using default surcharge');
+            }
+
             // Calculate components
             const baseAmount = routeData.base_fare;
-            const servicePremium = baseAmount * (pricing.base_fare_multiplier - 1.0);
+            const servicePremium = baseAmount * ((pricing.base_fare_multiplier || 1.0) - 1.0);
             const rayonSurcharge = (pricing.rayon_base_surcharge || 0) * seatCount;
             const distanceAmount = (routeData.distance_km || 0) * (pricing.distance_cost_per_km || 0);
             const peakMultiplier = pricing.peak_hours_multiplier || 1.0;
@@ -207,13 +215,18 @@ class ShuttleService {
     > {
         try {
             // Get schedules for route
-            const query = supabase
+            let query = supabase
                 .from('shuttle_schedules')
                 .select('id, departure_time, arrival_time, driver_id')
                 .eq('route_id', routeId)
                 .eq('active', true);
 
-            // Filter by date if provided (could be enhanced with date parsing)
+            // Filter by date if provided (e.g., '2026-04-14')
+            if (travelDate) {
+                query = query.gte('departure_time', `${travelDate}T00:00:00`)
+                             .lte('departure_time', `${travelDate}T23:59:59`);
+            }
+
             const { data: schedules, error: scheduleError } = await query;
 
             if (scheduleError || !schedules) {
@@ -279,117 +292,83 @@ class ShuttleService {
     /**
      * Create a booking atomically
      * Handles:
-     * - Price verification (prevent fraud)
-     * - Seat locking
-     * - Booking record creation
-     * - Seat availability update
-     * - Audit logging
+     * - Server-side price verification (prevent fraud)
+     * - Atomic seat locking and status update
+     * - Booking record creation with full price breakdown
+     * - Passenger detail creation per seat
+     * - Seat availability update in schedule services
      */
     async createBooking(
         userId: string,
         booking: BookingRequest
     ): Promise<BookingConfirmation | null> {
         try {
-            // Step 1: Verify price hasn't been tampered with
-            const priceVerification = await this.verifyBookingPrice(
-                booking.scheduleId,
-                booking.serviceTypeId,
-                booking.rayonId,
-                booking.seatNumbers.length,
-                booking.expectedTotalPrice
+            // Use the atomic RPC function for Phase 1
+            const { data: bookingId, error: rpcError } = await supabase.rpc(
+                'create_shuttle_booking_atomic_v2',
+                {
+                    p_schedule_id: booking.scheduleId,
+                    p_service_type_id: booking.serviceTypeId,
+                    p_vehicle_type: booking.vehicleType,
+                    p_rayon_id: booking.rayonId,
+                    p_pickup_point_id: booking.pickupPointId || null,
+                    p_user_id: userId,
+                    p_guest_name: booking.passengerInfo[0]?.name || 'Guest',
+                    p_guest_phone: booking.passengerInfo[0]?.phone || '',
+                    p_seat_numbers: booking.seatNumbers,
+                    p_passenger_names: booking.passengerInfo.map(p => p.name),
+                    p_passenger_phones: booking.passengerInfo.map(p => p.phone),
+                    p_payment_method: booking.paymentMethod,
+                    p_expected_total: booking.expectedTotalPrice
+                }
             );
 
-            if (!priceVerification.isValid) {
-                throw new Error(
-                    `Price verification failed. Difference: Rp ${priceVerification.difference}`
-                );
+            if (rpcError) {
+                console.error('RPC Error creating booking:', rpcError);
+                throw new Error(rpcError.message || 'Gagal membuat pesanan shuttle');
             }
 
-            // Step 2: Get schedule and service info
-            const { data: scheduleData } = await supabase
-                .from('shuttle_schedules')
-                .select(
-                    `id, route_id, service_type_id, shuttle_routes!inner(base_fare, distance_km)`
-                )
-                .eq('id', booking.scheduleId)
-                .single();
-
-            if (!scheduleData) {
-                throw new Error('Schedule not found');
+            if (!bookingId) {
+                throw new Error('Gagal mendapatkan ID pesanan setelah pembuatan');
             }
 
-            // Step 3: Get calculated price breakdown
-            const priceBreakdown = await this.calculatePrice(
-                scheduleData.route_id,
-                booking.serviceTypeId,
-                booking.rayonId,
-                booking.seatNumbers.length
-            );
-
-            if (!priceBreakdown) {
-                throw new Error('Could not calculate price');
-            }
-
-            // Step 4: Create booking record (atomic transaction would be ideal)
-            const { data: bookingData, error: bookingError } = await supabase
+            // Fetch the newly created booking to get all details (like reference number)
+            const { data: bookingData, error: fetchError } = await supabase
                 .from('shuttle_bookings')
-                .insert({
-                    user_id: userId,
-                    schedule_id: booking.scheduleId,
-                    service_type_id: booking.serviceTypeId,
-                    vehicle_type: booking.vehicleType,
-                    base_amount: priceBreakdown.baseAmount,
-                    service_premium: priceBreakdown.servicePremium,
-                    rayon_surcharge: priceBreakdown.rayonSurcharge,
-                    distance_amount: priceBreakdown.distanceAmount,
-                    total_amount: priceBreakdown.totalAmount,
-                    payment_method: booking.paymentMethod,
-                    booking_status: 'PENDING_PAYMENT',
-                    payment_status: 'UNPAID',
-                    // Reference number will be generated by trigger
-                })
                 .select('*')
+                .eq('id', bookingId)
                 .single();
 
-            if (bookingError || !bookingData) {
-                throw new Error(`Booking creation failed: ${bookingError?.message}`);
+            if (fetchError || !bookingData) {
+                throw new Error('Pesanan berhasil dibuat tetapi gagal memuat detail');
             }
 
-            // Step 5: Create passenger info (if booking successful)
-            if (booking.passengerInfo.length > 0) {
-                await supabase.from('shuttle_booking_details').insert(
-                    booking.passengerInfo.map((passenger) => ({
-                        booking_id: bookingData.id,
-                        seat_number: passenger.seatNumber,
-                        passenger_name: passenger.name,
-                        passenger_phone: passenger.phone,
-                    }))
-                );
-            }
-
-            // Step 6: Log booking creation for audit
-            await supabase.from('shuttle_booking_audit').insert({
-                booking_id: bookingData.id,
-                user_id: userId,
-                action: 'BOOKING_CREATED',
-                details: {
-                    schedule_id: booking.scheduleId,
-                    service_type_id: booking.serviceTypeId,
-                    seat_count: booking.seatNumbers.length,
-                    total_amount: priceBreakdown.totalAmount,
-                },
-            });
+            // Get the price breakdown that was stored
+            const priceBreakdown: PriceBreakdown = {
+                baseAmount: Number(bookingData.base_amount),
+                servicePremium: Number(bookingData.service_premium),
+                rayonSurcharge: Number(bookingData.rayon_surcharge),
+                distanceAmount: Number(bookingData.distance_amount),
+                peakHoursMultiplier: 1.0, // This is already factored into components in the RPC
+                totalAmount: Number(bookingData.total_fare),
+                breakdown: [
+                    { label: 'Tarif Dasar', amount: Number(bookingData.base_amount) },
+                    { label: 'Layanan Premium', amount: Number(bookingData.service_premium) },
+                    { label: 'Biaya Rayon', amount: Number(bookingData.rayon_surcharge) },
+                    { label: 'Biaya Jarak', amount: Number(bookingData.distance_amount) }
+                ]
+            };
 
             return {
                 bookingId: bookingData.id,
-                referenceNumber: bookingData.reference_number || 'PENDING',
-                totalAmount: priceBreakdown.totalAmount,
+                referenceNumber: bookingData.booking_ref || 'PENDING',
+                totalAmount: Number(bookingData.total_fare),
                 paymentStatus: bookingData.payment_status,
                 bookingStatus: bookingData.booking_status,
                 priceBreakdown,
             };
         } catch (error) {
-            console.error('Error creating booking:', error);
+            console.error('Error in createBooking:', error);
             throw error;
         }
     }

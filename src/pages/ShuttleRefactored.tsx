@@ -23,27 +23,36 @@ import { PaymentForm } from '@/components/shuttle/PaymentForm';
 import { BookingSummary } from '@/components/shuttle/BookingSummary';
 import { PriceBreakdown } from '@/components/shuttle/PriceBreakdown';
 import ShuttleTicket from '@/components/shuttle/ShuttleTicket';
+import { RayonSelector } from '@/components/shuttle/RayonSelector';
+import { PickupPointSelector } from '@/components/shuttle/PickupPointSelector';
+import { ServiceTypeSelector } from '@/components/shuttle/ServiceTypeSelector';
+import { VehicleTypeSelector } from '@/components/shuttle/VehicleTypeSelector';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type Step = 'routes' | 'schedule' | 'service_vehicle' | 'pickup' | 'seats' | 'passengers' | 'summary' | 'payment' | 'confirmation';
+type Step = 'location' | 'pickup_point' | 'service' | 'vehicle' | 'schedule' | 'seats' | 'passengers' | 'summary' | 'payment' | 'confirmation';
 
-const STEP_LIST: Step[] = ['routes', 'schedule', 'service_vehicle', 'pickup', 'seats', 'passengers', 'summary', 'payment', 'confirmation'];
+const STEP_LIST: Step[] = ['location', 'pickup_point', 'service', 'vehicle', 'schedule', 'seats', 'passengers', 'summary', 'payment', 'confirmation'];
 const STEP_LABELS: Record<Step, string> = {
-  routes: 'Route',
-  schedule: 'Schedule',
-  service_vehicle: 'Service',
-  pickup: 'Pickup',
-  seats: 'Seats',
-  passengers: 'Passengers',
-  summary: 'Summary',
-  payment: 'Payment',
-  confirmation: 'Confirmation',
+  location: 'Wilayah (Rayon)',
+  pickup_point: 'Titik Jemput',
+  service: 'Layanan',
+  vehicle: 'Kendaraan',
+  schedule: 'Jadwal',
+  seats: 'Kursi',
+  passengers: 'Penumpang',
+  summary: 'Ringkasan',
+  payment: 'Pembayaran',
+  confirmation: 'Konfirmasi',
 };
 
 interface BookingState {
+  rayonId: string | null;
+  pickupPointId: string | null;
   routeId: string | null;
+  serviceTypeId: string | null;
+  vehicleType: string | null;
   scheduleId: string | null;
   selectedService: ServiceVehicleOption | null;
-  rayonId: string | null;
   selectedSeats: number[];
   passengers: Array<{ seatNumber: number; name: string; phone: string }>;
   paymentMethod: string;
@@ -53,27 +62,32 @@ export default function Shuttle() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('booking');
-  const [step, setStep] = useState<Step>('routes');
+  const [step, setStep] = useState<Step>('location');
   const [priceBreakdown, setPriceBreakdown] = useState<any>(null);
+  const [isBooking, setIsBooking] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   // Booking state
   const [booking, setBooking] = useState<BookingState>({
+    rayonId: null,
+    pickupPointId: null,
     routeId: null,
+    serviceTypeId: null,
+    vehicleType: null,
     scheduleId: null,
     selectedService: null,
-    rayonId: null,
     selectedSeats: [],
     passengers: [],
     paymentMethod: 'CASH',
   });
 
-  // Query routes
-  const { data: routes, isLoading: routesLoading } = useQuery({
-    queryKey: ['shuttle-routes'],
+  // Query rayons
+  const { data: rayons, isLoading: rayonsLoading } = useQuery({
+    queryKey: ['shuttle-rayons-active'],
     queryFn: async () => {
       const { data, error } = await (window as any).supabase
-        .from('shuttle_routes')
-        .select('*')
+        .from('shuttle_rayons')
+        .select('*, shuttle_routes(id, name, origin, destination)')
         .eq('active', true)
         .order('name');
       if (error) throw error;
@@ -81,49 +95,119 @@ export default function Shuttle() {
     },
   });
 
-  // Query schedules for selected route
-  const { data: schedules } = useQuery({
-    queryKey: ['shuttle-schedules', booking.routeId],
+  // Query pickup points for selected rayon
+  const { data: pickupPoints, isLoading: pickupPointsLoading } = useQuery({
+    queryKey: ['shuttle-pickup-points', booking.rayonId],
     queryFn: async () => {
-      if (!booking.routeId) return [];
+      if (!booking.rayonId) return [];
       const { data, error } = await (window as any).supabase
-        .from('shuttle_schedules')
+        .from('shuttle_pickup_points')
         .select('*')
-        .eq('route_id', booking.routeId)
+        .eq('rayon_id', booking.rayonId)
         .eq('active', true)
-        .gte('departure_time', new Date().toISOString())
-        .order('departure_time');
+        .order('stop_order');
       if (error) throw error;
       return data || [];
+    },
+    enabled: !!booking.rayonId,
+  });
+
+  // Query available services for route (via schedule_services)
+  const { data: availableServices, isLoading: servicesLoading } = useQuery({
+    queryKey: ['shuttle-available-services', booking.routeId],
+    queryFn: async () => {
+      if (!booking.routeId) return [];
+      // This query finds distinct service types available for any schedule on this route
+      const { data, error } = await (window as any).supabase
+        .from('shuttle_schedule_services')
+        .select('service_type_id, shuttle_service_types(id, name, baggage_info)')
+        .eq('active', true)
+        .in('schedule_id', (
+          await (window as any).supabase
+            .from('shuttle_schedules')
+            .select('id')
+            .eq('route_id', booking.routeId)
+            .eq('active', true)
+        ).data?.map((s: any) => s.id) || []);
+
+      if (error) throw error;
+
+      // Uniq by service_type_id
+      const uniqueServices = Array.from(new Set((data || []).map((s: any) => s.service_type_id)))
+        .map(id => (data || []).find((s: any) => s.service_type_id === id)?.shuttle_service_types);
+
+      return uniqueServices.filter(Boolean);
     },
     enabled: !!booking.routeId,
   });
 
-  // Query rayons
-  const { data: rayons } = useQuery({
-    queryKey: ['shuttle-rayons'],
+  // Query available vehicles for service type
+  const { data: availableVehicles, isLoading: vehiclesLoading } = useQuery({
+    queryKey: ['shuttle-available-vehicles', booking.routeId, booking.serviceTypeId],
     queryFn: async () => {
-      const { data: rayonData, error: rayonError } = await (window as any).supabase
-        .from('shuttle_rayons')
-        .select('*')
-        .eq('active', true)
-        .order('name');
+      if (!booking.routeId || !booking.serviceTypeId) return [];
+      const { data, error } = await (window as any).supabase
+        .from('shuttle_schedule_services')
+        .select('vehicle_type')
+        .eq('route_id', booking.routeId) // Assuming we added route_id to schedule_services or joining via schedule
+        .eq('service_type_id', booking.serviceTypeId)
+        .eq('active', true);
 
-      if (rayonError) throw rayonError;
+      // Actually, joining via schedule is better if route_id is not in schedule_services
+      const { data: joinedData, error: joinError } = await (window as any).supabase
+        .from('shuttle_schedule_services')
+        .select('vehicle_type, shuttle_schedules!inner(route_id)')
+        .eq('shuttle_schedules.route_id', booking.routeId)
+        .eq('service_type_id', booking.serviceTypeId)
+        .eq('active', true);
 
-      const rayonIds = (rayonData || []).map((r: any) => r.id);
-      const { data: pointsData } = await (window as any).supabase
-        .from('shuttle_pickup_points')
-        .select('*')
-        .eq('active', true)
-        .in('rayon_id', rayonIds)
-        .order('stop_order');
+      if (joinError) throw joinError;
 
-      return (rayonData || []).map((r: any) => ({
-        ...r,
-        pickup_points: (pointsData || []).filter((p: any) => p.rayon_id === r.id),
-      }));
+      const uniqueVehicles = Array.from(new Set((joinedData || []).map((v: any) => v.vehicle_type))) as string[];
+      return uniqueVehicles;
     },
+    enabled: !!booking.routeId && !!booking.serviceTypeId,
+  });
+
+  // Query schedules for selected combination
+  const { data: filteredSchedules, isLoading: schedulesLoading } = useQuery({
+    queryKey: ['shuttle-filtered-schedules', booking.routeId, booking.serviceTypeId, booking.vehicleType],
+    queryFn: async () => {
+      if (!booking.routeId || !booking.serviceTypeId || !booking.vehicleType) return [];
+      const { data, error } = await (window as any).supabase
+        .from('shuttle_schedule_services')
+        .select('*, shuttle_schedules!inner(id, departure_time, arrival_time, route_id)')
+        .eq('shuttle_schedules.route_id', booking.routeId)
+        .eq('service_type_id', booking.serviceTypeId)
+        .eq('vehicle_type', booking.vehicleType)
+        .eq('active', true)
+        .gte('shuttle_schedules.departure_time', new Date().toISOString())
+        .order('departure_time', { foreignTable: 'shuttle_schedules' });
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!booking.routeId && !!booking.serviceTypeId && !!booking.vehicleType,
+  });
+
+  // Legacy queries - keep for now to avoid breaking other parts or remove if sure
+  // ...
+
+
+  // Query seats for selected schedule
+  const { data: scheduleSeats, isLoading: seatsLoading } = useQuery({
+    queryKey: ['shuttle-seats', booking.scheduleId],
+    queryFn: async () => {
+      if (!booking.scheduleId) return [];
+      const { data, error } = await (window as any).supabase
+        .from('shuttle_seats')
+        .select('*')
+        .eq('schedule_id', booking.scheduleId)
+        .order('seat_number');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!booking.scheduleId,
   });
 
   // Query user bookings
@@ -175,34 +259,82 @@ export default function Shuttle() {
   }, [booking.routeId, booking.selectedService, booking.rayonId, booking.selectedSeats]);
 
   // Handlers
-  const handleSelectRoute = (routeId: string) => {
+  const handleSelectRayon = (rayon: any) => {
     setBooking((prev) => ({
       ...prev,
-      routeId,
+      rayonId: rayon.id,
+      routeId: rayon.route_id || rayon.shuttle_routes?.id || null,
+      pickupPointId: null,
+      serviceTypeId: null,
+      vehicleType: null,
       scheduleId: null,
       selectedService: null,
-      rayonId: null,
+    }));
+    setStep('pickup_point');
+  };
+
+  const handleSelectPickupPoint = (pointId: string) => {
+    setBooking((prev) => ({ ...prev, pickupPointId: pointId }));
+    setStep('service');
+  };
+
+  const handleSelectServiceType = (serviceTypeId: string) => {
+    setBooking((prev) => ({ 
+      ...prev, 
+      serviceTypeId,
+      vehicleType: null,
+      scheduleId: null,
+      selectedService: null
+    }));
+    setStep('vehicle');
+  };
+
+  const handleSelectVehicleType = (vehicleType: string) => {
+    setBooking((prev) => ({ 
+      ...prev, 
+      vehicleType,
+      scheduleId: null,
+      selectedService: null
     }));
     setStep('schedule');
   };
 
-  const handleSelectSchedule = (scheduleId: string) => {
-    setBooking((prev) => ({ ...prev, scheduleId }));
-    setStep('service_vehicle');
-  };
-
-  const handleSelectService = (service: ServiceVehicleOption) => {
-    setBooking((prev) => ({ ...prev, selectedService: service }));
-    setStep('pickup');
-  };
-
-  const handleSelectPickup = (rayonId: string, pointId: string) => {
-    setBooking((prev) => ({ ...prev, rayonId }));
+  const handleSelectSchedule = (scheduleService: any) => {
+    setBooking((prev) => ({ 
+      ...prev, 
+      scheduleId: scheduleService.schedule_id,
+      selectedService: {
+        id: scheduleService.service_type_id,
+        serviceName: '', // Will be filled from data if needed
+        vehicleType: scheduleService.vehicle_type,
+        vehicleName: '', 
+        capacity: scheduleService.total_seats,
+        totalSeats: scheduleService.total_seats,
+        availableSeats: scheduleService.available_seats,
+        displayPrice: scheduleService.price_override || 0,
+        isFeatured: scheduleService.is_featured,
+        facilities: [],
+      }
+    }));
     setStep('seats');
   };
 
-  const handleSelectSeats = (seatNumbers: number[]) => {
-    setBooking((prev) => ({ ...prev, selectedSeats: seatNumbers }));
+  const handleSeatClick = (seat: any) => {
+    setBooking((prev) => {
+      const isSelected = prev.selectedSeats.includes(Number(seat.seat_number));
+      if (isSelected) {
+        return { ...prev, selectedSeats: prev.selectedSeats.filter(s => s !== Number(seat.seat_number)) };
+      } else {
+        return { ...prev, selectedSeats: [...prev.selectedSeats, Number(seat.seat_number)] };
+      }
+    });
+  };
+
+  const handleConfirmSeats = () => {
+    if (booking.selectedSeats.length === 0) {
+      toast.error("Silakan pilih minimal satu kursi");
+      return;
+    }
     setStep('passengers');
   };
 
@@ -220,7 +352,7 @@ export default function Shuttle() {
     setBooking((prev) => ({ ...prev, paymentMethod: method }));
   };
 
-  const handleConfirmBooking = async () => {
+  const handleConfirmBooking = async (method: 'CASH' | 'CARD' | 'TRANSFER', gateway?: string) => {
     try {
       if (!user) {
         toast.error('Please log in to book');
@@ -238,15 +370,18 @@ export default function Shuttle() {
         return;
       }
 
+      setIsBooking(true);
+
       // Create booking
       const confirmation = await ShuttleService.createBooking(user.id, {
         scheduleId: booking.scheduleId!,
-        serviceTypeId: booking.selectedService!.id,
-        vehicleType: booking.selectedService!.vehicleType,
+        serviceTypeId: booking.serviceTypeId!,
+        vehicleType: booking.vehicleType!,
         rayonId: booking.rayonId!,
+        pickupPointId: booking.pickupPointId!,
         seatNumbers: booking.selectedSeats,
         passengerInfo: booking.passengers,
-        paymentMethod: booking.paymentMethod as 'CASH' | 'CARD' | 'TRANSFER',
+        paymentMethod: method,
         expectedTotalPrice: priceBreakdown.totalAmount,
       });
 
@@ -257,6 +392,8 @@ export default function Shuttle() {
     } catch (error: any) {
       console.error('Booking error:', error);
       toast.error(error.message || 'Booking failed');
+    } finally {
+      setIsBooking(false);
     }
   };
 
@@ -277,9 +414,10 @@ export default function Shuttle() {
   const currentIndex = STEP_LIST.indexOf(step);
   const progress = ((currentIndex + 1) / STEP_LIST.length) * 100;
 
-  const selectedRoute = routes?.find((r) => r.id === booking.routeId);
-  const selectedSchedule = schedules?.find((s) => s.id === booking.scheduleId);
+  const selectedRoute = rayons?.find((r) => r.id === booking.rayonId)?.shuttle_routes;
+  const selectedSchedule = filteredSchedules?.find((s) => s.id === booking.scheduleId)?.shuttle_schedules;
   const selectedRayon = rayons?.find((r) => r.id === booking.rayonId);
+  const selectedPickupPoint = pickupPoints?.find((p) => p.id === booking.pickupPointId);
 
   return (
     <div className="container mx-auto py-6">
@@ -312,73 +450,151 @@ export default function Shuttle() {
             <div className="md:col-span-2">
               <Card>
                 <CardContent className="pt-6">
-                  {/* Routes Step */}
-                  {step === 'routes' && (
+                  {/* Location (Rayon) Step */}
+                  {step === 'location' && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Select Departure Route</h3>
-                      {routesLoading ? (
-                        <div className="flex items-center justify-center py-8">
-                          <Loader2 className="w-6 h-6 animate-spin mr-2" />
-                          Loading routes...
+                      <h3 className="text-lg font-semibold">Pilih Wilayah (Rayon)</h3>
+                      {rayonsLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[100px] w-full" />
+                          <Skeleton className="h-[100px] w-full" />
+                          <Skeleton className="h-[100px] w-full" />
                         </div>
                       ) : (
-                        <RouteSelector
-                          routes={routes || []}
-                          onSelect={handleSelectRoute}
+                        <RayonSelector
+                          rayons={rayons || []}
+                          onSelect={handleSelectRayon}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Pickup Point Step */}
+                  {step === 'pickup_point' && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Pilih Titik Jemput</h3>
+                      {pickupPointsLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[80px] w-full" />
+                          <Skeleton className="h-[80px] w-full" />
+                          <Skeleton className="h-[80px] w-full" />
+                        </div>
+                      ) : (
+                        <PickupPointSelector
+                          pickupPoints={pickupPoints || []}
+                          onSelect={handleSelectPickupPoint}
+                          onBack={handlePreviousStep}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Service Step */}
+                  {step === 'service' && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Pilih Jenis Layanan</h3>
+                      {servicesLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[120px] w-full" />
+                          <Skeleton className="h-[120px] w-full" />
+                        </div>
+                      ) : (
+                        <ServiceTypeSelector
+                          serviceTypes={availableServices || []}
+                          selectedRoute={selectedRoute}
+                          selectedDate={new Date()}
+                          onSelectService={handleSelectServiceType}
+                          onBack={handlePreviousStep}
+                        />
+                      )}
+                    </div>
+                  )}
+
+                  {/* Vehicle Step */}
+                  {step === 'vehicle' && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-semibold">Pilih Jenis Kendaraan</h3>
+                      {vehiclesLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[100px] w-full" />
+                          <Skeleton className="h-[100px] w-full" />
+                        </div>
+                      ) : (
+                        <VehicleTypeSelector
+                          availableVehicles={availableVehicles || []}
+                          selectedRoute={selectedRoute}
+                          selectedDate={new Date()}
+                          serviceTypeName={availableServices?.find(s => s.id === booking.serviceTypeId)?.name}
+                          vehicleDetails={{
+                            'MINI_CAR': { name: 'Mini Car', capacity: 4, facilities: ['AC', 'Music'], icon: <Loader2 /> },
+                            'SUV': { name: 'SUV', capacity: 6, facilities: ['AC', 'Music', 'USB'], icon: <Loader2 /> },
+                            'HIACE': { name: 'Hiace', capacity: 14, facilities: ['AC', 'TV', 'Music', 'USB'], icon: <Loader2 /> }
+                          }}
+                          onSelectVehicle={handleSelectVehicleType}
+                          onBack={handlePreviousStep}
                         />
                       )}
                     </div>
                   )}
 
                   {/* Schedule Step */}
-                  {step === 'schedule' && selectedRoute && (
+                  {step === 'schedule' && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">
-                        Select Schedule: {selectedRoute.origin} → {selectedRoute.destination}
-                      </h3>
-                      <ScheduleSelector
-                        schedules={schedules || []}
-                        onSelect={handleSelectSchedule}
-                      />
-                    </div>
-                  )}
-
-                  {/* Service & Vehicle Step */}
-                  {step === 'service_vehicle' && booking.scheduleId && (
-                    <div className="space-y-4">
-                      <ServiceVehicleSelector
-                        scheduleId={booking.scheduleId}
-                        onSelect={handleSelectService}
-                      />
-                    </div>
-                  )}
-
-                  {/* Pickup Step */}
-                  {step === 'pickup' && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Select Pickup Location</h3>
-                      <PickupSelector
-                        rayons={rayons || []}
-                        onSelect={handleSelectPickup}
-                      />
+                      <h3 className="text-lg font-semibold">Pilih Jadwal Keberangkatan</h3>
+                      {schedulesLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[80px] w-full" />
+                          <Skeleton className="h-[80px] w-full" />
+                          <Skeleton className="h-[80px] w-full" />
+                        </div>
+                      ) : (
+                        <ScheduleSelector
+                          filteredSchedules={filteredSchedules?.map(s => ({
+                            ...s.shuttle_schedules,
+                            available_seats: s.available_seats,
+                            total_seats: s.total_seats,
+                            price_override: s.price_override
+                          })) || []}
+                          selectedRoute={selectedRoute}
+                          selectedDate={new Date()}
+                          onSelectSchedule={(s) => {
+                            const selected = filteredSchedules?.find(fs => fs.shuttle_schedules.id === s.id);
+                            if (selected) handleSelectSchedule(selected);
+                          }}
+                          onBack={handlePreviousStep}
+                        />
+                      )}
                     </div>
                   )}
 
                   {/* Seats Step */}
                   {step === 'seats' && booking.scheduleId && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Select Seats</h3>
-                      <SeatSelector
-                        scheduleId={booking.scheduleId}
-                        onSelect={handleSelectSeats}
-                      />
+                      {seatsLoading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="h-[200px] w-full" />
+                        </div>
+                      ) : (
+                        <SeatSelector
+                          selectedRoute={selectedRoute}
+                          selectedScheduleDeparture={selectedSchedule?.departure_time || ""}
+                          selectedPickupPoint={selectedPickupPoint}
+                          selectedSchedule={selectedSchedule}
+                          scheduleSeats={scheduleSeats || []}
+                          selectedSeats={booking.selectedSeats.map(String)}
+                          totalFare={priceBreakdown?.totalAmount || 0}
+                          onSeatClick={handleSeatClick}
+                          onConfirmSeats={handleConfirmSeats}
+                          onBack={handlePreviousStep}
+                        />
+                      )}
                     </div>
                   )}
 
                   {/* Passengers Step */}
                   {step === 'passengers' && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Passenger Information</h3>
+                      <h3 className="text-lg font-semibold">Informasi Penumpang</h3>
                       <div className="space-y-3">
                         {booking.selectedSeats.map((seatNumber) => (
                           <GuestInfoForm
@@ -410,10 +626,14 @@ export default function Shuttle() {
                   {/* Payment Step */}
                   {step === 'payment' && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Payment Method</h3>
                       <PaymentForm
-                        onSelect={handleSetPayment}
-                        selectedMethod={booking.paymentMethod}
+                        totalFare={priceBreakdown?.totalAmount || 0}
+                        seatCount={booking.selectedSeats.length}
+                        booking={isBooking}
+                        processingPayment={isProcessingPayment}
+                        onPayCash={() => handleConfirmBooking('CASH')}
+                        onPayOnline={(gateway) => handleConfirmBooking('TRANSFER', gateway)}
+                        onBack={handlePreviousStep}
                       />
                     </div>
                   )}
@@ -421,8 +641,19 @@ export default function Shuttle() {
                   {/* Confirmation Step */}
                   {step === 'confirmation' && userBookings && userBookings.length > 0 && (
                     <div className="space-y-4">
-                      <h3 className="text-lg font-semibold">Booking Confirmed! 🎉</h3>
-                      <ShuttleTicket booking={userBookings[0]} />
+                      <h3 className="text-lg font-semibold">Pemesanan Berhasil! 🎉</h3>
+                      <ShuttleTicket 
+                        bookingRef={userBookings[0].booking_ref}
+                        routeName={userBookings[0].shuttle_schedules?.shuttle_routes?.name || ""}
+                        origin={userBookings[0].shuttle_schedules?.shuttle_routes?.origin || ""}
+                        destination={userBookings[0].shuttle_schedules?.shuttle_routes?.destination || ""}
+                        departure={userBookings[0].shuttle_schedules?.departure_time || ""}
+                        seatCount={userBookings[0].seat_count}
+                        guestName={userBookings[0].guest_name || ""}
+                        guestPhone={userBookings[0].guest_phone || ""}
+                        totalFare={userBookings[0].total_fare}
+                        paymentStatus={userBookings[0].payment_status}
+                      />
                     </div>
                   )}
                 </CardContent>
@@ -433,35 +664,30 @@ export default function Shuttle() {
                 <Button
                   variant="outline"
                   onClick={handlePreviousStep}
-                  disabled={currentIndex === 0}
+                  disabled={currentIndex === 0 || step === 'confirmation'}
                 >
                   <ChevronLeft className="w-4 h-4 mr-2" />
-                  Previous
+                  Kembali
                 </Button>
 
-                <Button
-                  onClick={
-                    step === 'payment'
-                      ? handleConfirmBooking
-                      : handleNextStep
-                  }
-                  disabled={
-                    (step === 'routes' && !booking.routeId) ||
-                    (step === 'schedule' && !booking.scheduleId) ||
-                    (step === 'service_vehicle' && !booking.selectedService) ||
-                    (step === 'pickup' && !booking.rayonId) ||
-                    (step === 'seats' && booking.selectedSeats.length === 0) ||
-                    (step === 'passengers' && booking.passengers.length !== booking.selectedSeats.length)
-                  }
-              className="ml-auto"
-                >
-                  {step === 'payment' ? 'Confirm & Pay' : (
-                    <>
-                      Next
-                      <ChevronRight className="w-4 h-4 ml-2" />
-                    </>
-                  )}
-                </Button>
+                {step !== 'payment' && step !== 'confirmation' && (
+                  <Button
+                    onClick={handleNextStep}
+                    disabled={
+                      (step === 'location' && !booking.rayonId) ||
+                      (step === 'pickup_point' && !booking.pickupPointId) ||
+                      (step === 'service' && !booking.serviceTypeId) ||
+                      (step === 'vehicle' && !booking.vehicleType) ||
+                      (step === 'schedule' && !booking.scheduleId) ||
+                      (step === 'seats' && booking.selectedSeats.length === 0) ||
+                      (step === 'passengers' && booking.passengers.length !== booking.selectedSeats.length)
+                    }
+                    className="ml-auto"
+                  >
+                    Selanjutnya
+                    <ChevronRight className="w-4 h-4 ml-2" />
+                  </Button>
+                )}
               </div>
             </div>
 

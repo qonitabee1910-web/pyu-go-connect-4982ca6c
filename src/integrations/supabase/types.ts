@@ -1421,9 +1421,12 @@ export type Database = {
       }
       shuttle_bookings: {
         Row: {
+          base_amount: number | null
+          booking_notes: string | null
           booking_ref: string
           booking_status: string | null
           created_at: string
+          distance_amount: number | null
           email: string | null
           guest_name: string | null
           guest_phone: string | null
@@ -1436,18 +1439,25 @@ export type Database = {
           pickup_point_id: string | null
           pickup_status: string | null
           rayon_id: string | null
+          rayon_surcharge: number | null
           schedule_id: string
           seat_count: number
+          service_premium: number | null
+          service_type_id: string | null
           special_requests: string | null
           status: Database["public"]["Enums"]["booking_status"]
           total_fare: number
           updated_at: string
           user_id: string | null
+          vehicle_type: string | null
         }
         Insert: {
+          base_amount?: number | null
+          booking_notes?: string | null
           booking_ref?: string
           booking_status?: string | null
           created_at?: string
+          distance_amount?: number | null
           email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
@@ -1460,18 +1470,25 @@ export type Database = {
           pickup_point_id?: string | null
           pickup_status?: string | null
           rayon_id?: string | null
+          rayon_surcharge?: number | null
           schedule_id: string
           seat_count?: number
+          service_premium?: number | null
+          service_type_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_fare?: number
           updated_at?: string
           user_id?: string | null
+          vehicle_type?: string | null
         }
         Update: {
+          base_amount?: number | null
+          booking_notes?: string | null
           booking_ref?: string
           booking_status?: string | null
           created_at?: string
+          distance_amount?: number | null
           email?: string | null
           guest_name?: string | null
           guest_phone?: string | null
@@ -1484,13 +1501,17 @@ export type Database = {
           pickup_point_id?: string | null
           pickup_status?: string | null
           rayon_id?: string | null
+          rayon_surcharge?: number | null
           schedule_id?: string
           seat_count?: number
+          service_premium?: number | null
+          service_type_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
           total_fare?: number
           updated_at?: string
           user_id?: string | null
+          vehicle_type?: string | null
         }
         Relationships: [
           {
@@ -1512,6 +1533,90 @@ export type Database = {
             columns: ["schedule_id"]
             isOneToOne: false
             referencedRelation: "shuttle_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_bookings_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_bookings_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_booking_details: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          passenger_name: string
+          passenger_phone: string
+          seat_number: number
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          passenger_name: string
+          passenger_phone: string
+          seat_number: number
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          passenger_name?: string
+          passenger_phone?: string
+          seat_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_booking_details_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_booking_audit: {
+        Row: {
+          action: string
+          booking_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          booking_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          booking_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_booking_audit_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
             referencedColumns: ["id"]
           },
         ]
@@ -2148,6 +2253,22 @@ export type Database = {
         Args: { p_driver_id: string; p_schedule_id: string }
         Returns: boolean
       }
+      calculate_shuttle_booking_price: {
+        Args: {
+          p_schedule_id: string
+          p_service_type_id: string
+          p_rayon_id: string
+          p_seat_count: number
+        }
+        Returns: {
+          base_amount: number
+          service_premium: number
+          rayon_surcharge: number
+          distance_amount: number
+          peak_multiplier: number
+          total_amount: number
+        }[]
+      }
       cleanup_expired_seat_reservations: { Args: never; Returns: undefined }
       create_shuttle_booking_atomic: {
         Args: {
@@ -2164,6 +2285,32 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      create_shuttle_booking_atomic_v2: {
+        Args: {
+          p_expected_total: number
+          p_guest_name: string
+          p_guest_phone: string
+          p_passenger_names: string[]
+          p_passenger_phones: string[]
+          p_payment_method: string
+          p_pickup_point_id: string
+          p_rayon_id: string
+          p_schedule_id: string
+          p_seat_numbers: number[]
+          p_service_type_id: string
+          p_user_id: string
+          p_vehicle_type: string
+        }
+        Returns: string
+      }
+      get_available_services_for_schedule: {
+        Args: { p_schedule_id: string }
+        Returns: Json
+      }
+      get_current_pricing_for_service: {
+        Args: { p_service_type_id: string }
+        Returns: Json
       }
       has_role: {
         Args: {
