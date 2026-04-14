@@ -84,8 +84,21 @@ export function SessionRecoveryWrapper({
     );
   }
 
-  // User is authenticated - check role
-  if (user && requiredRole && role !== requiredRole && role !== "admin") {
+  // Wait for role to be loaded before checking permissions
+  // This fixes the race condition where role is undefined during refresh
+  if (user && !role && authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="space-y-4 text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="text-slate-600">Verifying permissions...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // User is authenticated - check role (only after role is loaded)
+  if (user && role && requiredRole && role !== requiredRole && role !== "admin") {
     return <Navigate to="/forbidden" state={{ from: location }} replace />;
   }
 
