@@ -498,6 +498,279 @@ export type Database = {
           },
         ]
       }
+      email_blacklist: {
+        Row: {
+          bounce_subtype: string | null
+          bounce_type: string | null
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          reason: string | null
+          related_event_id: string | null
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          bounce_subtype?: string | null
+          bounce_type?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          related_event_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          bounce_subtype?: string | null
+          bounce_type?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          reason?: string | null
+          related_event_id?: string | null
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_blacklist_related_event_id_fkey"
+            columns: ["related_event_id"]
+            isOneToOne: false
+            referencedRelation: "email_webhook_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      email_delivery_metrics: {
+        Row: {
+          bounce_rate: number | null
+          delivery_rate: number | null
+          id: number
+          metric_date: string
+          open_rate: number | null
+          total_bounced: number | null
+          total_complained: number | null
+          total_delivered: number | null
+          total_opened: number | null
+          total_sent: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          bounce_rate?: number | null
+          delivery_rate?: number | null
+          id?: number
+          metric_date?: string
+          open_rate?: number | null
+          total_bounced?: number | null
+          total_complained?: number | null
+          total_delivered?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          bounce_rate?: number | null
+          delivery_rate?: number | null
+          id?: number
+          metric_date?: string
+          open_rate?: number | null
+          total_bounced?: number | null
+          total_complained?: number | null
+          total_delivered?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      email_logs: {
+        Row: {
+          attempts: number
+          body_html: string
+          created_at: string
+          error_message: string | null
+          id: string
+          last_attempt_at: string | null
+          metadata: Json | null
+          recipient_email: string
+          recipient_id: string | null
+          sent_at: string | null
+          status: string
+          subject: string
+          template_type: string
+        }
+        Insert: {
+          attempts?: number
+          body_html: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json | null
+          recipient_email: string
+          recipient_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject: string
+          template_type: string
+        }
+        Update: {
+          attempts?: number
+          body_html?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          last_attempt_at?: string | null
+          metadata?: Json | null
+          recipient_email?: string
+          recipient_id?: string | null
+          sent_at?: string | null
+          status?: string
+          subject?: string
+          template_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_logs_template_type_fkey"
+            columns: ["template_type"]
+            isOneToOne: false
+            referencedRelation: "email_templates"
+            referencedColumns: ["type"]
+          },
+        ]
+      }
+      email_templates: {
+        Row: {
+          body_html: string
+          body_text: string | null
+          created_at: string
+          id: string
+          is_active: boolean
+          preview: string | null
+          subject: string
+          type: string
+          updated_at: string
+          variables: Json | null
+        }
+        Insert: {
+          body_html: string
+          body_text?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          preview?: string | null
+          subject: string
+          type: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Update: {
+          body_html?: string
+          body_text?: string | null
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          preview?: string | null
+          subject?: string
+          type?: string
+          updated_at?: string
+          variables?: Json | null
+        }
+        Relationships: []
+      }
+      email_webhook_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          last_test_at: string | null
+          last_test_status: string | null
+          provider: string
+          updated_at: string
+          webhook_secret: string
+          webhook_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_status?: string | null
+          provider: string
+          updated_at?: string
+          webhook_secret: string
+          webhook_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_status?: string | null
+          provider?: string
+          updated_at?: string
+          webhook_secret?: string
+          webhook_url?: string
+        }
+        Relationships: []
+      }
+      email_webhook_events: {
+        Row: {
+          bounce_subtype: string | null
+          bounce_type: string | null
+          created_at: string
+          email_log_id: string | null
+          error_code: string | null
+          error_message: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          provider: string
+          provider_event_id: string | null
+          recipient_email: string | null
+        }
+        Insert: {
+          bounce_subtype?: string | null
+          bounce_type?: string | null
+          created_at?: string
+          email_log_id?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          provider: string
+          provider_event_id?: string | null
+          recipient_email?: string | null
+        }
+        Update: {
+          bounce_subtype?: string | null
+          bounce_type?: string | null
+          created_at?: string
+          email_log_id?: string | null
+          error_code?: string | null
+          error_message?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          provider?: string
+          provider_event_id?: string | null
+          recipient_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "email_webhook_events_email_log_id_fkey"
+            columns: ["email_log_id"]
+            isOneToOne: false
+            referencedRelation: "email_logs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       external_drivers: {
         Row: {
           created_at: string | null
@@ -1883,6 +2156,7 @@ export type Database = {
         Args: { p_schedule_id: string }
         Returns: undefined
       }
+      update_email_delivery_metrics: { Args: never; Returns: undefined }
     }
     Enums: {
       ad_placement: "dashboard_banner" | "sidebar" | "popup" | "ride_completion"

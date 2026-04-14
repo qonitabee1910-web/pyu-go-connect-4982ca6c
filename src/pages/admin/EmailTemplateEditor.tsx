@@ -40,7 +40,7 @@ export default function EmailTemplateEditor() {
 
   const loadTemplates = async () => {
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("email_templates")
         .select("*")
         .order("type");
@@ -81,7 +81,7 @@ export default function EmailTemplateEditor() {
 
     setLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .update({
           subject: editData.subject,
@@ -106,7 +106,7 @@ export default function EmailTemplateEditor() {
 
   const toggleTemplateActive = async (templateId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .update({ is_active: !isActive })
         .eq("id", templateId);

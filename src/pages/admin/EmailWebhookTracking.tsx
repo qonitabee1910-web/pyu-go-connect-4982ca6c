@@ -127,7 +127,7 @@ export default function EmailWebhookTracking() {
       setLoading(true);
 
       // Load webhook events
-      let query = supabase
+      let query = (supabase as any)
         .from("email_webhook_events")
         .select("*")
         .order("created_at", { ascending: false })
@@ -145,7 +145,7 @@ export default function EmailWebhookTracking() {
       setWebhookEvents(events || []);
 
       // Load blacklist
-      const { data: blacklist, error: blacklistError } = await supabase
+      const { data: blacklist, error: blacklistError } = await (supabase as any)
         .from("email_blacklist")
         .select("*")
         .order("created_at", { ascending: false });
@@ -154,7 +154,7 @@ export default function EmailWebhookTracking() {
       setBlacklistEntries(blacklist || []);
 
       // Load metrics
-      const { data: metricsData, error: metricsError } = await supabase
+      const { data: metricsData, error: metricsError } = await (supabase as any)
         .from("email_delivery_metrics")
         .select("*")
         .order("metric_date", { ascending: false })
@@ -164,7 +164,7 @@ export default function EmailWebhookTracking() {
       setMetrics((metricsData || []).reverse());
 
       // Load webhook configs
-      const { data: configs, error: configError } = await supabase
+      const { data: configs, error: configError } = await (supabase as any)
         .from("email_webhook_config")
         .select("*");
 

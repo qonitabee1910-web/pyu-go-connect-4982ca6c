@@ -35,10 +35,11 @@ export default function EmailSettings() {
         .single();
 
       if (data?.value) {
-        setProvider(data.value.type || "resend");
-        setApiKey(data.value.api_key || "");
-        setFromEmail(data.value.from_email || "noreply@pyugo.com");
-        setFromName(data.value.from_name || "PYU GO");
+        const val = data.value as any;
+        setProvider(val.type || "resend");
+        setApiKey(val.api_key || "");
+        setFromEmail(val.from_email || "noreply@pyugo.com");
+        setFromName(val.from_name || "PYU GO");
       }
     } catch (err) {
       console.error("Error loading settings:", err);
@@ -47,7 +48,7 @@ export default function EmailSettings() {
 
   const loadTemplates = async () => {
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("email_templates")
         .select("*")
         .order("type");
@@ -59,7 +60,7 @@ export default function EmailSettings() {
 
   const loadLogs = async () => {
     try {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("email_logs")
         .select("*")
         .order("created_at", { ascending: false })
@@ -138,7 +139,7 @@ export default function EmailSettings() {
 
   const toggleTemplate = async (templateId: string, isActive: boolean) => {
     try {
-      const { error } = await supabase
+      const { error } = await (supabase as any)
         .from("email_templates")
         .update({ is_active: !isActive })
         .eq("id", templateId);
