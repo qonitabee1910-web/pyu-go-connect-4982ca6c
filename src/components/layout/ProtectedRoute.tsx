@@ -29,8 +29,18 @@ export function ProtectedRoute({ requiredRole, requiredPermission }: ProtectedRo
     );
   }
 
-  // User is authenticated - check role
-  if (user && requiredRole && role !== requiredRole && role !== "admin") {
+  // Wait for role to be loaded before checking permissions
+  // This fixes the race condition where role is undefined during refresh
+  if (user && !role && authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  // User is authenticated - check role (only after role is loaded)
+  if (user && role && requiredRole && role !== requiredRole && role !== "admin") {
     return <Navigate to="/forbidden" state={{ from: location }} replace />;
   }
 

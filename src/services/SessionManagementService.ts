@@ -322,8 +322,8 @@ class SessionManagementService {
         event,
         ip_address: ipAddress,
         user_agent: navigator.userAgent,
-        device_info: JSON.stringify(deviceInfo),
-        details: JSON.stringify(details || {}),
+        device_info: deviceInfo,  // ✅ Send as object for JSONB column
+        details: details || {},   // ✅ Send as object for JSONB column
       };
       
       await supabase.from("session_audit_logs").insert(auditLog);
