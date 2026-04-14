@@ -1788,6 +1788,45 @@ export type Database = {
         }
         Relationships: []
       }
+      shuttle_service_vehicle_types: {
+        Row: {
+          active: boolean
+          capacity: number
+          created_at: string
+          description: string | null
+          facilities: string[] | null
+          id: string
+          service_type_id: string
+          updated_at: string
+          vehicle_name: string
+          vehicle_type: string
+        }
+        Insert: {
+          active?: boolean
+          capacity: number
+          created_at?: string
+          description?: string | null
+          facilities?: string[] | null
+          id?: string
+          service_type_id: string
+          updated_at?: string
+          vehicle_name: string
+          vehicle_type: string
+        }
+        Update: {
+          active?: boolean
+          capacity?: number
+          created_at?: string
+          description?: string | null
+          facilities?: string[] | null
+          id?: string
+          service_type_id?: string
+          updated_at?: string
+          vehicle_name?: string
+          vehicle_type?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string

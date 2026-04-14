@@ -138,6 +138,28 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
     },
   });
 
+  // Query available vehicles for the selected service type
+  const { data: availableVehicles, isLoading: vehiclesLoading } = useQuery({
+    queryKey: ["service-vehicles", serviceTypeId],
+    queryFn: async () => {
+      if (!serviceTypeId) return [];
+      try {
+        const { data, error } = await (supabase as any)
+          .from("shuttle_service_vehicle_types")
+          .select("*")
+          .eq("service_type_id", serviceTypeId)
+          .eq("active", true);
+        if (error) throw error;
+        console.log("Available vehicles for service:", data);
+        return data || [];
+      } catch (err) {
+        console.error("Error loading vehicles:", err);
+        return [];
+      }
+    },
+    enabled: !!serviceTypeId,
+  });
+
   const handleSave = async () => {
     if (!departureDate || !departureTime) {
       toast.error("Tanggal dan jam keberangkatan wajib diisi");
@@ -145,6 +167,10 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
     }
     if (!serviceTypeId) {
       toast.error("Pilih jenis layanan");
+      return;
+    }
+    if (!vehicleType) {
+      toast.error("Pilih jenis kendaraan");
       return;
     }
     setSaving(true);
@@ -209,7 +235,11 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-2">
           <Label>Jenis Layanan {serviceTypesLoading && <span className="text-xs text-gray-500">(loading...)</span>}</Label>
-          <Select value={serviceTypeId} onValueChange={setServiceTypeId} disabled={serviceTypesLoading || !serviceTypes || serviceTypes.length === 0}>
+          <Select value={serviceTypeId} onValueChange={(value) => {
+            setServiceTypeId(value);
+            // Reset vehicle type when service changes
+            setVehicleType("");
+          }} disabled={serviceTypesLoading || !serviceTypes || serviceTypes.length === 0}>
             <SelectTrigger>
               <SelectValue placeholder={serviceTypesLoading ? "Loading..." : "Pilih Layanan"} />
             </SelectTrigger>
@@ -228,17 +258,43 @@ function ScheduleForm({ schedule, routeId, onClose }: { schedule?: any; routeId:
           )}
         </div>
         <div className="space-y-2">
-          <Label>Jenis Kendaraan</Label>
-          <Select value={vehicleType} onValueChange={setVehicleType}>
+          <Label>Jenis Kendaraan {vehiclesLoading && <span className="text-xs text-gray-500">(loading...)</span>}</Label>
+          <Select value={vehicleType} onValueChange={setVehicleType} disabled={!serviceTypeId || vehiclesLoading || !availableVehicles || availableVehicles.length === 0}>
             <SelectTrigger>
-              <SelectValue placeholder="Pilih Kendaraan" />
+              <SelectValue placeholder={!serviceTypeId ? "Pilih Layanan Dulu" : vehiclesLoading ? "Loading..." : "Pilih Kendaraan"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="SUV">SUV</SelectItem>
-              <SelectItem value="MiniCar">MiniCar</SelectItem>
-              <SelectItem value="Hiace">Hiace</SelectItem>
+              {availableVehicles && availableVehicles.length > 0 ? (
+                availableVehicles.map((vehicle: any) => (
+                  <SelectItem key={vehicle.id} value={vehicle.vehicle_type}>
+                    {vehicle.vehicle_name} ({vehicle.capacity} kursi)
+                  </SelectItem>
+                ))
+              ) : (
+                <div className="p-2 text-sm text-gray-500">
+                  {!serviceTypeId ? "Select service type first" : "No vehicles available"}
+                </div>
+              )}
             </SelectContent>
           </Select>
+          {serviceTypeId && availableVehicles && availableVehicles.length > 0 && vehicleType && (
+            <div className="text-xs text-gray-600">
+              {(() => {
+                const selectedVehicle = (availableVehicles as any[]).find((v: any) => v.vehicle_type === vehicleType);
+                if (selectedVehicle && selectedVehicle.capacity) {
+                  return (
+                    <>
+                      <p>Kapasitas: {selectedVehicle.capacity} kursi</p>
+                      {selectedVehicle.facilities && selectedVehicle.facilities.length > 0 && (
+                        <p>Fasilitas: {selectedVehicle.facilities.join(", ")}</p>
+                      )}
+                    </>
+                  );
+                }
+                return null;
+              })()}
+            </div>
+          )}
         </div>
       </div>
 
