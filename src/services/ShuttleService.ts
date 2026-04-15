@@ -68,6 +68,46 @@ export interface BookingConfirmation {
  * Including price calculation, verification, and booking creation
  */
 class ShuttleService {
+    // Local cache for experiment IDs to avoid repeated lookups
+    private experimentIdCache: Map<string, string> = new Map();
+
+    /**
+     * Get experiment ID by name with caching
+     */
+    private async getExperimentId(name: string): Promise<string | null> {
+        if (this.experimentIdCache.has(name)) {
+            return this.experimentIdCache.get(name) || null;
+        }
+
+        const { data, error } = await supabase
+            .from('ab_test_experiments')
+            .select('id')
+            .eq('name', name)
+            .maybeSingle();
+
+        if (error || !data) return null;
+        
+        this.experimentIdCache.set(name, data.id);
+        return data.id;
+    }
+
+    /**
+     * Get user variation ID for an experiment
+     */
+    private async getUserVariationId(userId: string, experimentName: string = 'shuttle_dynamic_pricing'): Promise<string | null> {
+        const experimentId = await this.getExperimentId(experimentName);
+        if (!experimentId) return null;
+
+        const { data } = await supabase
+            .from('user_experiment_assignments')
+            .select('variation_id')
+            .eq('user_id', userId)
+            .eq('experiment_id', experimentId)
+            .maybeSingle();
+
+        return data?.variation_id || null;
+    }
+
     /**
      * Get all available services for a specific schedule
      * Includes pricing and seat availability
@@ -176,75 +216,60 @@ class ShuttleService {
     }
 
     /**
-     * Calculate price for a booking with A/B Testing support
+     * Calculate price for a booking with A/B Testing, Distance Matrix, and Tiers support
+     * Calls server-side RPC to ensure 100% consistency with verification
      */
     async calculatePrice(
-        routeId: string,
+        scheduleId: string | null,
         serviceTypeId: string,
         rayonId: string,
         seatCount: number = 1,
-        userId?: string
+        userId?: string,
+        pickupPointId?: string,
+        destinationPointId?: string,
+        routeId?: string
     ): Promise<PriceBreakdown | null> {
         try {
-            // Get experimental config if user provided
-            let abConfig = null;
-            if (userId) {
-                abConfig = await this.getUserExperimentVariation(userId);
-            }
+            // Get experimental variation if user provided
+            const variationId = userId ? await this.getUserVariationId(userId) : null;
 
-            // Get route base fare
-            const { data: routeData, error: routeError } = await supabase
-                .from('shuttle_routes')
-                .select('base_fare, distance_km')
-                .eq('id', routeId)
-                .single();
-
-            if (routeError || !routeData) {
-                console.error('Error fetching route:', routeError);
-                return null;
-            }
-
-            // Get current pricing rules
-            const { data: pricingData, error: pricingError } = await supabase.rpc(
-                'get_current_pricing_for_service',
-                { p_service_id: serviceTypeId }
+            // Call the server-side calculation function
+            const { data, error } = await supabase.rpc(
+                'calculate_shuttle_booking_price',
+                {
+                    p_schedule_id: scheduleId || null,
+                    p_route_id: routeId || null,
+                    p_service_type_id: serviceTypeId,
+                    p_rayon_id: rayonId,
+                    p_seat_count: seatCount,
+                    p_variation_id: variationId,
+                    p_pickup_point_id: pickupPointId || null,
+                    p_destination_point_id: destinationPointId || null
+                }
             );
 
-            if (pricingError || !pricingData) {
-                console.error('Error fetching pricing rules:', pricingError);
+            if (error || !data || data.length === 0) {
+                console.error('Error in RPC price calculation:', error);
                 return null;
             }
 
-            const pricing = Array.isArray(pricingData) ? pricingData[0] : (pricingData as any);
-            if (!pricing) return null;
-
-            // Apply A/B Testing logic if available
-            const baseMultiplier = abConfig?.base_price_multiplier || pricing.base_fare_multiplier || 1.0;
-            const demandSurge = abConfig?.demand_surge_factor || pricing.peak_hours_multiplier || 1.0;
-            const distWeight = abConfig?.distance_weight || pricing.distance_cost_per_km || 0;
-
-            // Calculate components
-            const baseAmount = routeData.base_fare;
-            const servicePremium = baseAmount * (baseMultiplier - 1.0);
-            const rayonSurcharge = (pricing.rayon_base_surcharge || 0) * seatCount;
-            const distanceAmount = (routeData.distance_km || 0) * distWeight;
-
-            const subtotal = baseAmount + servicePremium + rayonSurcharge + distanceAmount;
-            const totalAmount = subtotal * demandSurge;
+            const res = data[0];
+            const subtotal = Number(res.base_amount) + Number(res.service_premium) + Number(res.rayon_surcharge) + Number(res.distance_amount);
 
             return {
-                baseAmount,
-                servicePremium,
-                rayonSurcharge,
-                distanceAmount,
-                peakHoursMultiplier: demandSurge,
-                totalAmount: Math.round(totalAmount / 500) * 500, // Round to nearest 500 IDR
+                baseAmount: Number(res.base_amount),
+                servicePremium: Number(res.service_premium),
+                rayonSurcharge: Number(res.rayon_surcharge),
+                distanceAmount: Number(res.distance_amount),
+                peakHoursMultiplier: Number(res.peak_multiplier),
+                totalAmount: Number(res.total_amount),
                 breakdown: [
-                    { label: 'Tarif Dasar', amount: baseAmount },
-                    ...(servicePremium > 0 ? [{ label: 'Premium Layanan', amount: servicePremium }] : []),
-                    ...(rayonSurcharge > 0 ? [{ label: 'Biaya Rayon', amount: rayonSurcharge }] : []),
-                    ...(distanceAmount > 0 ? [{ label: 'Biaya Jarak', amount: distanceAmount }] : []),
-                    ...(demandSurge > 1.0 ? [{ label: 'Surge Demand', amount: (demandSurge - 1.0) * subtotal }] : []),
+                    { label: 'Tarif Dasar', amount: Number(res.base_amount) },
+                    ...(Number(res.service_premium) > 0 ? [{ label: 'Premium Layanan', amount: Number(res.service_premium) }] : []),
+                    ...(Number(res.rayon_surcharge) > 0 ? [{ label: 'Biaya Rayon', amount: Number(res.rayon_surcharge) }] : []),
+                    ...(Number(res.distance_amount) > 0 ? [{ label: 'Biaya Jarak', amount: Number(res.distance_amount) }] : []),
+                    ...(Number(res.tier_discount) !== 0 ? [{ label: 'Diskon/Penyesuaian', amount: -Number(res.tier_discount) }] : []),
+                    ...(Number(res.peak_multiplier) > 1.0 ? [{ label: 'Surge Demand', amount: (Number(res.peak_multiplier) - 1.0) * (subtotal - Number(res.tier_discount)) }] : []),
                 ],
             };
         } catch (error) {
@@ -312,18 +337,24 @@ class ShuttleService {
      * Prevents price tampering by recalculating on server
      */
     async verifyBookingPrice(
-        routeId: string,
+        scheduleId: string | null,
         serviceTypeId: string,
         rayonId: string,
         seatCount: number,
-        claimedTotal: number
+        claimedTotal: number,
+        userId?: string,
+        routeId?: string
     ): Promise<{ isValid: boolean; calculatedTotal: number; difference: number }> {
         try {
             const priceBreakdown = await this.calculatePrice(
-                routeId,
+                scheduleId,
                 serviceTypeId,
                 rayonId,
-                seatCount
+                seatCount,
+                userId,
+                undefined,
+                undefined,
+                routeId
             );
 
             if (!priceBreakdown) {
@@ -360,7 +391,7 @@ class ShuttleService {
         seatCount: number,
         passengers: Array<{ seatNumber: number; name: string; phone: string }>,
         expectedTotalPrice: number,
-        selectedSeats: number[]
+        userId?: string
     ): Promise<{ isValid: boolean; errors: string[] }> {
         try {
             const errors: string[] = [];
@@ -398,11 +429,13 @@ class ShuttleService {
 
             // Check 3: Verify price hasn't changed significantly
             const priceVerification = await this.verifyBookingPrice(
-                routeId,
+                scheduleId,
                 serviceTypeId,
                 rayonId,
                 seatCount,
-                expectedTotalPrice
+                expectedTotalPrice,
+                userId,
+                routeId
             );
 
             if (!priceVerification.isValid) {
@@ -449,6 +482,9 @@ class ShuttleService {
         booking: BookingRequest
     ): Promise<BookingConfirmation | null> {
         try {
+            // Get variation ID for the user if any (for server-side verification)
+            const variationId = await this.getUserVariationId(userId);
+
             // Use the atomic RPC function for Phase 1
             const { data: bookingId, error: rpcError } = await supabase.rpc(
                 'create_shuttle_booking_atomic_v2',
@@ -465,7 +501,8 @@ class ShuttleService {
                     p_passenger_names: booking.passengerInfo.map(p => p.name),
                     p_passenger_phones: booking.passengerInfo.map(p => p.phone),
                     p_payment_method: booking.paymentMethod,
-                    p_expected_total: booking.expectedTotalPrice
+                    p_expected_total: booking.expectedTotalPrice,
+                    p_variation_id: variationId
                 }
             );
 

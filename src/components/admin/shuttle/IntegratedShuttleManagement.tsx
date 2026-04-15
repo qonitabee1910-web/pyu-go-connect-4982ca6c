@@ -658,7 +658,7 @@ function FarePreview({ routeId, serviceId, rayonId, seats }: { routeId: string; 
     queryKey: ["admin-fare-preview", routeId, serviceId, rayonId, seats],
     queryFn: async () => {
       if (!routeId || !serviceId || !rayonId) return null;
-      return ShuttleService.calculatePrice(routeId, serviceId, rayonId, seats);
+      return ShuttleService.calculatePrice(null, serviceId, rayonId, seats, undefined, undefined, undefined, routeId);
     },
     enabled: !!routeId && !!serviceId && !!rayonId,
   });

@@ -45,63 +45,42 @@ describe('ShuttleService', () => {
     });
 
     describe('calculatePrice', () => {
-        it('should calculate price correctly based on route and pricing rules', async () => {
-            // Mock route data
-            const mockRouteData = { base_fare: 100000, distance_km: 50 };
-            const mockPricingData = [{
-                base_fare_multiplier: 1.2,
-                rayon_base_surcharge: 5000,
-                distance_cost_per_km: 2000,
-                peak_hours_multiplier: 1.0
+        it('should calculate price correctly by calling RPC', async () => {
+            const mockPriceData = [{
+                base_amount: 100000,
+                service_premium: 20000,
+                rayon_surcharge: 5000,
+                distance_amount: 100000,
+                peak_multiplier: 1.0,
+                tier_discount: 0,
+                total_amount: 225000
             }];
 
-            // Mock implementation
-            (supabase.from as any).mockImplementation((table: string) => {
-                if (table === 'shuttle_routes') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: mockRouteData, error: null })
-                    };
-                }
-                if (table === 'shuttle_rayons') {
-                    return {
-                        select: vi.fn().mockReturnThis(),
-                        eq: vi.fn().mockReturnThis(),
-                        single: vi.fn().mockResolvedValue({ data: { id: 'rayon-1' }, error: null })
-                    };
-                }
-                return {};
-            });
+            (supabase.rpc as any).mockResolvedValue({ data: mockPriceData, error: null });
 
-            (supabase.rpc as any).mockResolvedValue({ data: mockPricingData, error: null });
+            const result = await ShuttleService.calculatePrice('schedule-1', 'service-1', 'rayon-1', 1);
 
-            const result = await ShuttleService.calculatePrice('route-1', 'service-1', 'rayon-1', 1);
+            expect(supabase.rpc).toHaveBeenCalledWith('calculate_shuttle_booking_price', expect.objectContaining({
+                p_schedule_id: 'schedule-1',
+                p_service_type_id: 'service-1',
+                p_rayon_id: 'rayon-1',
+                p_seat_count: 1
+            }));
 
             expect(result).not.toBeNull();
             if (result) {
-                // Calculation:
-                // base = 100000
-                // premium = 100000 * (1.2 - 1) = 20000
-                // rayon = 5000 * 1 = 5000
-                // distance = 50 * 2000 = 100000
-                // total = (100000 + 20000 + 5000 + 100000) * 1.0 = 225000
                 expect(result.totalAmount).toBe(225000);
                 expect(result.baseAmount).toBe(100000);
-                expect(result.servicePremium).toBeCloseTo(20000);
+                expect(result.servicePremium).toBe(20000);
                 expect(result.rayonSurcharge).toBe(5000);
                 expect(result.distanceAmount).toBe(100000);
             }
         });
 
-        it('should return null if route is not found', async () => {
-            (supabase.from as any).mockImplementation(() => ({
-                select: vi.fn().mockReturnThis(),
-                eq: vi.fn().mockReturnThis(),
-                single: vi.fn().mockResolvedValue({ data: null, error: { message: 'Not found' } })
-            }));
+        it('should return null if RPC fails', async () => {
+            (supabase.rpc as any).mockResolvedValue({ data: null, error: { message: 'Error' } });
 
-            const result = await ShuttleService.calculatePrice('invalid-route', 'service-1', 'rayon-1');
+            const result = await ShuttleService.calculatePrice('schedule-1', 'service-1', 'rayon-1');
             expect(result).toBeNull();
         });
     });

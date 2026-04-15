@@ -21,14 +21,27 @@ Defines different service levels for a route (e.g., Reguler, VIP).
 - `name` (TEXT)
 - `description` (TEXT)
 
-### `shuttle_pricing_rules`
+### `shuttle_pricing_rules` (Legacy: `fare_rules`)
 Configures how prices are calculated for each service type.
 - `id` (UUID, PK)
 - `service_type_id` (FK -> shuttle_service_types)
 - `base_fare_multiplier` (NUMERIC): Multiplier for route base fare.
-- `cost_per_km` (NUMERIC): Additional cost per kilometer.
+- `distance_cost_per_km` (NUMERIC): Additional cost per kilometer.
 - `peak_hours_multiplier` (NUMERIC): Multiplier during peak hours.
-- `base_rayon_surcharge` (NUMERIC): Flat fee per rayon.
+- `rayon_base_surcharge` (NUMERIC): Flat fee per rayon.
+
+### `shuttle_distance_matrix` (New)
+Point-to-point distance overrides.
+- `origin_point_id` (FK -> shuttle_pickup_points)
+- `destination_point_id` (FK -> shuttle_pickup_points)
+- `distance_km` (NUMERIC): Override distance.
+
+### `shuttle_pricing_tiers` (New)
+Bulk booking discounts.
+- `min_seats` (INTEGER)
+- `max_seats` (INTEGER)
+- `discount_multiplier` (NUMERIC): e.g., 0.9 for 10% discount.
+- `surcharge_fixed` (NUMERIC)
 
 ### `shuttle_bookings`
 Stores user bookings.
@@ -42,6 +55,17 @@ Stores user bookings.
 ---
 
 ## 2. RPC Functions (Supabase)
+
+### `calculate_shuttle_booking_price(...)`
+Calculates price with A/B variation, Distance Matrix, and Pricing Tiers support.
+Parameters:
+- `p_schedule_id` (UUID)
+- `p_service_type_id` (UUID)
+- `p_rayon_id` (UUID)
+- `p_seat_count` (INTEGER)
+- `p_variation_id` (UUID, Optional)
+- `p_pickup_point_id` (UUID, Optional)
+- `p_destination_point_id` (UUID, Optional)
 
 ### `get_available_services_for_schedule(p_schedule_id UUID)`
 Returns a list of available services (Service Type + Vehicle Type) for a given schedule, including calculated prices.

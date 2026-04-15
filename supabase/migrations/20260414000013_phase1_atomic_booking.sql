@@ -52,7 +52,8 @@ CREATE OR REPLACE FUNCTION public.calculate_shuttle_booking_price(
   p_schedule_id UUID,
   p_service_type_id UUID,
   p_rayon_id UUID,
-  p_seat_count INTEGER
+  p_seat_count INTEGER,
+  p_variation_id UUID DEFAULT NULL
 )
 RETURNS TABLE (
   base_amount NUMERIC,
@@ -72,6 +73,10 @@ DECLARE
   v_distance_km NUMERIC;
   v_pricing RECORD;
   v_subtotal NUMERIC;
+  v_ab_config JSONB;
+  v_base_multiplier NUMERIC;
+  v_dist_weight NUMERIC;
+  v_demand_surge NUMERIC;
 BEGIN
   -- Get route info
   SELECT route_id INTO v_route_id FROM shuttle_schedules WHERE id = p_schedule_id;
@@ -84,15 +89,26 @@ BEGIN
     RAISE EXCEPTION 'Pricing rules not found for service type';
   END IF;
 
-  -- Calculate components
-  base_amount := v_base_fare;
-  service_premium := v_base_fare * (v_pricing.base_fare_multiplier - 1.0);
-  rayon_surcharge := (v_pricing.rayon_base_surcharge || 0) * p_seat_count;
-  distance_amount := (v_distance_km || 0) * (v_pricing.distance_cost_per_km || 0);
-  peak_multiplier := v_pricing.peak_hours_multiplier || 1.0;
+  -- Get A/B config if variation_id provided
+  IF p_variation_id IS NOT NULL THEN
+    SELECT config INTO v_ab_config FROM ab_test_variations WHERE id = p_variation_id;
+  END IF;
+
+  -- Apply multipliers (A/B config overrides standard pricing)
+  v_base_multiplier := COALESCE((v_ab_config->>'base_price_multiplier')::NUMERIC, v_pricing.base_fare_multiplier, 1.0);
+  v_dist_weight := COALESCE((v_ab_config->>'distance_weight')::NUMERIC, v_pricing.distance_cost_per_km, 0);
+  v_demand_surge := COALESCE((v_ab_config->>'demand_surge_factor')::NUMERIC, v_pricing.peak_hours_multiplier, 1.0);
+
+  -- Calculate components (standardized per seat then multiplied)
+  base_amount := v_base_fare * p_seat_count;
+  service_premium := (v_base_fare * (v_base_multiplier - 1.0)) * p_seat_count;
+  rayon_surcharge := COALESCE(v_pricing.rayon_base_surcharge, 0) * p_seat_count;
+  distance_amount := (COALESCE(v_distance_km, 0) * v_dist_weight) * p_seat_count;
+  peak_multiplier := v_demand_surge;
 
   v_subtotal := base_amount + service_premium + rayon_surcharge + distance_amount;
-  total_amount := ROUND(v_subtotal * peak_multiplier, 0);
+  -- Standardize rounding to 500 IDR to match frontend
+  total_amount := ROUND((v_subtotal * peak_multiplier) / 500) * 500;
 
   RETURN NEXT;
 END;
@@ -113,7 +129,8 @@ CREATE OR REPLACE FUNCTION public.create_shuttle_booking_atomic_v2(
   p_passenger_names TEXT[],
   p_passenger_phones TEXT[],
   p_payment_method TEXT,
-  p_expected_total NUMERIC
+  p_expected_total NUMERIC,
+  p_variation_id UUID DEFAULT NULL
 ) RETURNS UUID
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -130,7 +147,7 @@ BEGIN
   
   -- 1. Recalculate and Verify Price (Prevent Fraud)
   SELECT * INTO v_price_info FROM public.calculate_shuttle_booking_price(
-    p_schedule_id, p_service_type_id, p_rayon_id, v_seat_count
+    p_schedule_id, p_service_type_id, p_rayon_id, v_seat_count, p_variation_id
   );
 
   IF ABS(v_price_info.total_amount - p_expected_total) > 1.0 THEN

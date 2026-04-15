@@ -122,7 +122,7 @@ export default function Shuttle() {
           booking.selectedSeats.length,
           booking.passengers,
           priceBreakdown?.totalAmount || 0,
-          booking.selectedSeats
+          user?.id
         );
 
         if (!validationResult.isValid) {

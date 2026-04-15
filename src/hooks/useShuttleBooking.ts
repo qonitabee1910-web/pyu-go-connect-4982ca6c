@@ -309,12 +309,14 @@ export const useShuttleBooking = () => {
   // Auto-calculate price
   useEffect(() => {
     const updatePrice = async () => {
-      if (booking.routeId && booking.serviceTypeId && booking.rayonId && booking.selectedSeats.length > 0) {
+      if (booking.scheduleId && booking.serviceTypeId && booking.rayonId && booking.selectedSeats.length > 0) {
         const result = await ShuttleService.calculatePrice(
-          booking.routeId,
+          booking.scheduleId,
           booking.serviceTypeId,
           booking.rayonId,
-          booking.selectedSeats.length
+          booking.selectedSeats.length,
+          user?.id,
+          booking.pickupPointId || undefined
         );
         setPriceBreakdown(result);
       } else {
@@ -322,7 +324,7 @@ export const useShuttleBooking = () => {
       }
     };
     updatePrice();
-  }, [booking.routeId, booking.serviceTypeId, booking.rayonId, booking.selectedSeats.length]);
+  }, [booking.scheduleId, booking.serviceTypeId, booking.rayonId, booking.selectedSeats.length, booking.pickupPointId, user?.id]);
 
   return {
     step,

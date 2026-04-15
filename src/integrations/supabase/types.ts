@@ -2911,10 +2911,14 @@ export type Database = {
       }
       calculate_shuttle_booking_price: {
         Args: {
-          p_rayon_id: string
-          p_schedule_id: string
-          p_seat_count: number
-          p_service_type_id: string
+          p_destination_point_id?: string | null
+          p_pickup_point_id?: string | null
+          p_rayon_id?: string | null
+          p_route_id?: string | null
+          p_schedule_id?: string | null
+          p_seat_count?: number
+          p_service_type_id?: string | null
+          p_variation_id?: string | null
         }
         Returns: {
           base_amount: number
@@ -2922,6 +2926,7 @@ export type Database = {
           peak_multiplier: number
           rayon_surcharge: number
           service_premium: number
+          tier_discount: number
           total_amount: number
         }[]
       }
@@ -2956,6 +2961,7 @@ export type Database = {
           p_seat_numbers: number[]
           p_service_type_id: string
           p_user_id: string
+          p_variation_id?: string | null
           p_vehicle_type: string
         }
         Returns: string
