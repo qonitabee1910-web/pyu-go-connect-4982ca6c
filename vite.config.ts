@@ -21,7 +21,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    target: 'esnext',
+    target: 'es2020',
     minify: 'esbuild',
     chunkSizeWarningLimit: 1000,
     reportCompressedSize: false,
@@ -29,23 +29,7 @@ export default defineConfig(({ mode }) => ({
     sourcemap: false,
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
-              return 'vendor-core';
-            }
-            if (id.includes('@radix-ui')) {
-              return 'vendor-ui';
-            }
-            if (id.includes('recharts')) {
-              return 'vendor-charts';
-            }
-            if (id.includes('leaflet')) {
-              return 'vendor-map';
-            }
-            return 'vendor-others';
-          }
-        },
+        manualChunks: undefined,
         entryFileNames: 'js/[name]-[hash].js',
         chunkFileNames: 'js/[name]-[hash].js',
         assetFileNames: ({ name }) => {
