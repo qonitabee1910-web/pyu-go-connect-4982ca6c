@@ -14,6 +14,71 @@ export type Database = {
   }
   public: {
     Tables: {
+      ab_test_experiments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          start_date: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          start_date?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          start_date?: string | null
+        }
+        Relationships: []
+      }
+      ab_test_variations: {
+        Row: {
+          config: Json
+          created_at: string | null
+          experiment_id: string | null
+          id: string
+          name: string
+          traffic_weight: number
+        }
+        Insert: {
+          config: Json
+          created_at?: string | null
+          experiment_id?: string | null
+          id?: string
+          name: string
+          traffic_weight: number
+        }
+        Update: {
+          config?: Json
+          created_at?: string | null
+          experiment_id?: string | null
+          id?: string
+          name?: string
+          traffic_weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ab_test_variations_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "ab_test_experiments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ad_metrics: {
         Row: {
           ad_id: string
@@ -977,6 +1042,42 @@ export type Database = {
         }
         Relationships: []
       }
+      http_sessions: {
+        Row: {
+          created_at: string | null
+          expires_at: string
+          id: string
+          ip_address: string | null
+          is_valid: boolean | null
+          last_activity: string | null
+          session_token: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity?: string | null
+          session_token: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          is_valid?: boolean | null
+          last_activity?: string | null
+          session_token?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       otp_verifications: {
         Row: {
           code: string
@@ -1264,6 +1365,33 @@ export type Database = {
         }
         Relationships: []
       }
+      rate_limit_logs: {
+        Row: {
+          endpoint: string
+          id: string
+          ip_address: string | null
+          timestamp: string | null
+          user_id: string | null
+          violation_count: number | null
+        }
+        Insert: {
+          endpoint: string
+          id?: string
+          ip_address?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+          violation_count?: number | null
+        }
+        Update: {
+          endpoint?: string
+          id?: string
+          ip_address?: string | null
+          timestamp?: string | null
+          user_id?: string | null
+          violation_count?: number | null
+        }
+        Relationships: []
+      }
       ride_ratings: {
         Row: {
           comment: string | null
@@ -1383,6 +1511,154 @@ export type Database = {
           },
         ]
       }
+      security_audit_log: {
+        Row: {
+          action: string | null
+          created_at: string | null
+          details: Json | null
+          event_type: string
+          id: string
+          ip_address: string | null
+          resource: string | null
+          status: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action?: string | null
+          created_at?: string | null
+          details?: Json | null
+          event_type: string
+          id?: string
+          ip_address?: string | null
+          resource?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string | null
+          created_at?: string | null
+          details?: Json | null
+          event_type?: string
+          id?: string
+          ip_address?: string | null
+          resource?: string | null
+          status?: string | null
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      session_audit_logs: {
+        Row: {
+          created_at: string
+          details: Json | null
+          device_info: Json | null
+          event: string
+          id: string
+          ip_address: string | null
+          session_id: string
+          updated_at: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json | null
+          device_info?: Json | null
+          event: string
+          id?: string
+          ip_address?: string | null
+          session_id: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json | null
+          device_info?: Json | null
+          event?: string
+          id?: string
+          ip_address?: string | null
+          session_id?: string
+          updated_at?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      shuttle_booking_audit: {
+        Row: {
+          action: string
+          booking_id: string
+          created_at: string | null
+          details: Json | null
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          booking_id: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          booking_id?: string
+          created_at?: string | null
+          details?: Json | null
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_booking_audit_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_booking_details: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          id: string
+          passenger_name: string
+          passenger_phone: string
+          seat_number: number
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          passenger_name: string
+          passenger_phone: string
+          seat_number: number
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          passenger_name?: string
+          passenger_phone?: string
+          seat_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_booking_details_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shuttle_booking_seats: {
         Row: {
           booking_id: string
@@ -1440,12 +1716,14 @@ export type Database = {
           pickup_status: string | null
           rayon_id: string | null
           rayon_surcharge: number | null
+          reference_number: string | null
           schedule_id: string
           seat_count: number
           service_premium: number | null
           service_type_id: string | null
           special_requests: string | null
           status: Database["public"]["Enums"]["booking_status"]
+          total_amount: number | null
           total_fare: number
           updated_at: string
           user_id: string | null
@@ -1471,12 +1749,14 @@ export type Database = {
           pickup_status?: string | null
           rayon_id?: string | null
           rayon_surcharge?: number | null
+          reference_number?: string | null
           schedule_id: string
           seat_count?: number
           service_premium?: number | null
           service_type_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number | null
           total_fare?: number
           updated_at?: string
           user_id?: string | null
@@ -1502,12 +1782,14 @@ export type Database = {
           pickup_status?: string | null
           rayon_id?: string | null
           rayon_surcharge?: number | null
+          reference_number?: string | null
           schedule_id?: string
           seat_count?: number
           service_premium?: number | null
           service_type_id?: string | null
           special_requests?: string | null
           status?: Database["public"]["Enums"]["booking_status"]
+          total_amount?: number | null
           total_fare?: number
           updated_at?: string
           user_id?: string | null
@@ -1540,83 +1822,6 @@ export type Database = {
             columns: ["service_type_id"]
             isOneToOne: false
             referencedRelation: "shuttle_service_types"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "shuttle_bookings_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      shuttle_booking_details: {
-        Row: {
-          booking_id: string
-          created_at: string
-          id: string
-          passenger_name: string
-          passenger_phone: string
-          seat_number: number
-        }
-        Insert: {
-          booking_id: string
-          created_at?: string
-          id?: string
-          passenger_name: string
-          passenger_phone: string
-          seat_number: number
-        }
-        Update: {
-          booking_id?: string
-          created_at?: string
-          id?: string
-          passenger_name?: string
-          passenger_phone?: string
-          seat_number?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shuttle_booking_details_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "shuttle_bookings"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      shuttle_booking_audit: {
-        Row: {
-          action: string
-          booking_id: string
-          created_at: string
-          details: Json | null
-          id: string
-          user_id: string | null
-        }
-        Insert: {
-          action: string
-          booking_id: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          user_id?: string | null
-        }
-        Update: {
-          action?: string
-          booking_id?: string
-          created_at?: string
-          details?: Json | null
-          id?: string
-          user_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shuttle_booking_audit_booking_id_fkey"
-            columns: ["booking_id"]
-            isOneToOne: false
-            referencedRelation: "shuttle_bookings"
             referencedColumns: ["id"]
           },
         ]
@@ -1671,33 +1876,95 @@ export type Database = {
           },
         ]
       }
+      shuttle_pricing_rules: {
+        Row: {
+          active: boolean | null
+          base_fare_multiplier: number
+          created_at: string | null
+          description: string | null
+          distance_cost_per_km: number
+          effective_date: string | null
+          id: string
+          peak_hours_end: string | null
+          peak_hours_multiplier: number | null
+          peak_hours_start: string | null
+          rayon_base_surcharge: number | null
+          service_type_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          base_fare_multiplier?: number
+          created_at?: string | null
+          description?: string | null
+          distance_cost_per_km?: number
+          effective_date?: string | null
+          id?: string
+          peak_hours_end?: string | null
+          peak_hours_multiplier?: number | null
+          peak_hours_start?: string | null
+          rayon_base_surcharge?: number | null
+          service_type_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          base_fare_multiplier?: number
+          created_at?: string | null
+          description?: string | null
+          distance_cost_per_km?: number
+          effective_date?: string | null
+          id?: string
+          peak_hours_end?: string | null
+          peak_hours_multiplier?: number | null
+          peak_hours_start?: string | null
+          rayon_base_surcharge?: number | null
+          service_type_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_pricing_rules_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shuttle_rayons: {
         Row: {
           active: boolean
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           name: string
           route_id: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           active?: boolean
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name: string
           route_id?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           active?: boolean
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name?: string
           route_id?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -1714,36 +1981,154 @@ export type Database = {
           active: boolean
           base_fare: number
           created_at: string
+          created_by: string | null
           destination: string
           distance_km: number | null
           id: string
           name: string
           origin: string
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           active?: boolean
           base_fare?: number
           created_at?: string
+          created_by?: string | null
           destination: string
           distance_km?: number | null
           id?: string
           name: string
           origin: string
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           active?: boolean
           base_fare?: number
           created_at?: string
+          created_by?: string | null
           destination?: string
           distance_km?: number | null
           id?: string
           name?: string
           origin?: string
           updated_at?: string
+          updated_by?: string | null
         }
         Relationships: []
+      }
+      shuttle_schedule_seats: {
+        Row: {
+          booked_at: string | null
+          booking_id: string | null
+          created_at: string | null
+          id: string
+          is_booked: boolean | null
+          schedule_id: string
+          seat_number: number
+        }
+        Insert: {
+          booked_at?: string | null
+          booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_booked?: boolean | null
+          schedule_id: string
+          seat_number: number
+        }
+        Update: {
+          booked_at?: string | null
+          booking_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_booked?: boolean | null
+          schedule_id?: string
+          seat_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_booking"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_schedule"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_schedule_services: {
+        Row: {
+          active: boolean | null
+          available_seats: number
+          created_at: string | null
+          id: string
+          is_featured: boolean | null
+          price_override: number | null
+          schedule_id: string
+          service_type_id: string
+          total_seats: number
+          updated_at: string | null
+          vehicle_mapping_id: string | null
+          vehicle_type: string
+        }
+        Insert: {
+          active?: boolean | null
+          available_seats?: number
+          created_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          price_override?: number | null
+          schedule_id: string
+          service_type_id: string
+          total_seats?: number
+          updated_at?: string | null
+          vehicle_mapping_id?: string | null
+          vehicle_type: string
+        }
+        Update: {
+          active?: boolean | null
+          available_seats?: number
+          created_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          price_override?: number | null
+          schedule_id?: string
+          service_type_id?: string
+          total_seats?: number
+          updated_at?: string | null
+          vehicle_mapping_id?: string | null
+          vehicle_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_schedule_services_schedule_id_fkey"
+            columns: ["schedule_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_schedules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_schedule_services_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_schedule_services_vehicle_mapping_id_fkey"
+            columns: ["vehicle_mapping_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_vehicle_types"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shuttle_schedules: {
         Row: {
@@ -1751,13 +2136,16 @@ export type Database = {
           arrival_time: string | null
           available_seats: number
           created_at: string
+          created_by: string | null
           departure_time: string
           driver_id: string | null
           id: string
           route_id: string
+          service_id: string | null
           service_type_id: string | null
           total_seats: number
           updated_at: string
+          updated_by: string | null
           vehicle_id: string | null
           vehicle_type: string | null
         }
@@ -1766,13 +2154,16 @@ export type Database = {
           arrival_time?: string | null
           available_seats?: number
           created_at?: string
+          created_by?: string | null
           departure_time: string
           driver_id?: string | null
           id?: string
           route_id: string
+          service_id?: string | null
           service_type_id?: string | null
           total_seats?: number
           updated_at?: string
+          updated_by?: string | null
           vehicle_id?: string | null
           vehicle_type?: string | null
         }
@@ -1781,13 +2172,16 @@ export type Database = {
           arrival_time?: string | null
           available_seats?: number
           created_at?: string
+          created_by?: string | null
           departure_time?: string
           driver_id?: string | null
           id?: string
           route_id?: string
+          service_id?: string | null
           service_type_id?: string | null
           total_seats?: number
           updated_at?: string
+          updated_by?: string | null
           vehicle_id?: string | null
           vehicle_type?: string | null
         }
@@ -1804,6 +2198,13 @@ export type Database = {
             columns: ["route_id"]
             isOneToOne: false
             referencedRelation: "shuttle_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_schedules_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
             referencedColumns: ["id"]
           },
           {
@@ -1868,69 +2269,140 @@ export type Database = {
           active: boolean
           baggage_info: string
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           name: Database["public"]["Enums"]["shuttle_service_category"]
+          route_id: string | null
           updated_at: string
+          updated_by: string | null
         }
         Insert: {
           active?: boolean
           baggage_info: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name: Database["public"]["Enums"]["shuttle_service_category"]
+          route_id?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
         Update: {
           active?: boolean
           baggage_info?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           name?: Database["public"]["Enums"]["shuttle_service_category"]
+          route_id?: string | null
           updated_at?: string
+          updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_service_types_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_routes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shuttle_service_vehicle_types: {
         Row: {
-          active: boolean
+          active: boolean | null
           capacity: number
-          created_at: string
+          created_at: string | null
           description: string | null
           facilities: string[] | null
           id: string
+          route_id: string | null
           service_type_id: string
-          updated_at: string
+          updated_at: string | null
           vehicle_name: string
           vehicle_type: string
         }
         Insert: {
-          active?: boolean
-          capacity: number
-          created_at?: string
+          active?: boolean | null
+          capacity?: number
+          created_at?: string | null
           description?: string | null
           facilities?: string[] | null
           id?: string
+          route_id?: string | null
           service_type_id: string
-          updated_at?: string
+          updated_at?: string | null
           vehicle_name: string
           vehicle_type: string
         }
         Update: {
-          active?: boolean
+          active?: boolean | null
           capacity?: number
-          created_at?: string
+          created_at?: string | null
           description?: string | null
           facilities?: string[] | null
           id?: string
+          route_id?: string | null
           service_type_id?: string
-          updated_at?: string
+          updated_at?: string | null
           vehicle_name?: string
           vehicle_type?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_service_vehicle_types_route_id_fkey"
+            columns: ["route_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_routes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_service_vehicle_types_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_experiment_assignments: {
+        Row: {
+          assigned_at: string | null
+          experiment_id: string
+          user_id: string
+          variation_id: string | null
+        }
+        Insert: {
+          assigned_at?: string | null
+          experiment_id: string
+          user_id: string
+          variation_id?: string | null
+        }
+        Update: {
+          assigned_at?: string | null
+          experiment_id?: string
+          user_id?: string
+          variation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_experiment_assignments_experiment_id_fkey"
+            columns: ["experiment_id"]
+            isOneToOne: false
+            referencedRelation: "ab_test_experiments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_experiment_assignments_variation_id_fkey"
+            columns: ["variation_id"]
+            isOneToOne: false
+            referencedRelation: "ab_test_variations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -2056,6 +2528,100 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "vehicle_documents_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_maintenance_logs: {
+        Row: {
+          cost: number | null
+          created_at: string | null
+          document_url: string | null
+          id: string
+          mileage: number | null
+          notes: string | null
+          performed_by: string | null
+          service_date: string
+          service_type: string
+          updated_at: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          cost?: number | null
+          created_at?: string | null
+          document_url?: string | null
+          id?: string
+          mileage?: number | null
+          notes?: string | null
+          performed_by?: string | null
+          service_date: string
+          service_type: string
+          updated_at?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          cost?: number | null
+          created_at?: string | null
+          document_url?: string | null
+          id?: string
+          mileage?: number | null
+          notes?: string | null
+          performed_by?: string | null
+          service_date?: string
+          service_type?: string
+          updated_at?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_maintenance_logs_vehicle_id_fkey"
+            columns: ["vehicle_id"]
+            isOneToOne: false
+            referencedRelation: "vehicles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehicle_reminders: {
+        Row: {
+          created_at: string | null
+          due_date: string
+          id: string
+          is_active: boolean | null
+          last_notified_at: string | null
+          reminder_type: string
+          status: string | null
+          updated_at: string | null
+          vehicle_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          due_date: string
+          id?: string
+          is_active?: boolean | null
+          last_notified_at?: string | null
+          reminder_type: string
+          status?: string | null
+          updated_at?: string | null
+          vehicle_id: string
+        }
+        Update: {
+          created_at?: string | null
+          due_date?: string
+          id?: string
+          is_active?: boolean | null
+          last_notified_at?: string | null
+          reminder_type?: string
+          status?: string | null
+          updated_at?: string | null
+          vehicle_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_reminders_vehicle_id_fkey"
             columns: ["vehicle_id"]
             isOneToOne: false
             referencedRelation: "vehicles"
@@ -2193,6 +2759,51 @@ export type Database = {
         }
         Relationships: []
       }
+      webhook_events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          last_retry_at: string | null
+          max_retries: number | null
+          next_retry_at: string | null
+          payload: Json
+          provider: string
+          retry_count: number | null
+          status: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          payload: Json
+          provider: string
+          retry_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          last_retry_at?: string | null
+          max_retries?: number | null
+          next_retry_at?: string | null
+          payload?: Json
+          provider?: string
+          retry_count?: number | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           admin_notes: string | null
@@ -2244,65 +2855,54 @@ export type Database = {
           },
         ]
       }
-      shuttle_pricing_rules: {
-        Row: {
-          active: boolean
-          base_fare_multiplier: number
-          created_at: string
-          description: string | null
-          distance_cost_per_km: number
-          effective_date: string
-          id: string
-          peak_hours_end: string | null
-          peak_hours_multiplier: number | null
-          peak_hours_start: string | null
-          rayon_base_surcharge: number
-          service_type_id: string
-          updated_at: string
-        }
-        Insert: {
-          active?: boolean
-          base_fare_multiplier?: number
-          created_at?: string
-          description?: string | null
-          distance_cost_per_km?: number
-          effective_date?: string
-          id?: string
-          peak_hours_end?: string | null
-          peak_hours_multiplier?: number | null
-          peak_hours_start?: string | null
-          rayon_base_surcharge?: number
-          service_type_id: string
-          updated_at?: string
-        }
-        Update: {
-          active?: boolean
-          base_fare_multiplier?: number
-          created_at?: string
-          description?: string | null
-          distance_cost_per_km?: number
-          effective_date?: string
-          id?: string
-          peak_hours_end?: string | null
-          peak_hours_multiplier?: number | null
-          peak_hours_start?: string | null
-          rayon_base_surcharge?: number
-          service_type_id?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "shuttle_pricing_rules_service_type_id_fkey"
-            columns: ["service_type_id"]
-            isOneToOne: false
-            referencedRelation: "shuttle_service_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
-      [_ in never]: never
+      active_sessions: {
+        Row: {
+          activity_count: number | null
+          device_info: Json | null
+          ip_address: string | null
+          last_activity: string | null
+          session_id: string | null
+          session_started: string | null
+          user_agent: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      suspicious_activities: {
+        Row: {
+          created_at: string | null
+          details: Json | null
+          device_info: Json | null
+          event: string | null
+          ip_address: string | null
+          logins_from_different_ips_last_hour: number | null
+          session_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          details?: Json | null
+          device_info?: Json | null
+          event?: string | null
+          ip_address?: string | null
+          logins_from_different_ips_last_hour?: never
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          details?: Json | null
+          device_info?: Json | null
+          event?: string | null
+          ip_address?: string | null
+          logins_from_different_ips_last_hour?: never
+          session_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_driver_to_shuttle: {
@@ -2311,17 +2911,17 @@ export type Database = {
       }
       calculate_shuttle_booking_price: {
         Args: {
-          p_schedule_id: string
-          p_service_type_id: string
           p_rayon_id: string
+          p_schedule_id: string
           p_seat_count: number
+          p_service_type_id: string
         }
         Returns: {
           base_amount: number
-          service_premium: number
-          rayon_surcharge: number
           distance_amount: number
           peak_multiplier: number
+          rayon_surcharge: number
+          service_premium: number
           total_amount: number
         }[]
       }
@@ -2360,13 +2960,39 @@ export type Database = {
         }
         Returns: string
       }
+      create_shuttle_booking_safe: {
+        Args: {
+          p_schedule_id: string
+          p_seats_needed?: number
+          p_trip_type?: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       get_available_services_for_schedule: {
         Args: { p_schedule_id: string }
-        Returns: Json
+        Returns: {
+          available_seats: number
+          capacity: number
+          display_price: number
+          facilities: string[]
+          is_featured: boolean
+          service_id: string
+          service_name: string
+          total_seats: number
+          vehicle_name: string
+          vehicle_type: string
+        }[]
       }
       get_current_pricing_for_service: {
         Args: { p_service_id: string }
-        Returns: Json
+        Returns: {
+          base_fare_multiplier: number
+          distance_cost_per_km: number
+          peak_hours_multiplier: number
+          rayon_base_surcharge: number
+          service_type_id: string
+        }[]
       }
       has_role: {
         Args: {
@@ -2378,6 +3004,19 @@ export type Database = {
       increment_ad_metric: {
         Args: { p_ad_id: string; p_type: string }
         Returns: undefined
+      }
+      is_admin: { Args: never; Returns: boolean }
+      log_security_event: {
+        Args: {
+          p_action?: string
+          p_details?: Json
+          p_event_type: string
+          p_ip_address?: string
+          p_resource?: string
+          p_status?: string
+          p_user_agent?: string
+        }
+        Returns: string
       }
       process_wallet_transaction: {
         Args: {
@@ -2392,6 +3031,10 @@ export type Database = {
         }
         Returns: string
       }
+      process_webhook_with_retry: {
+        Args: { p_event_id: string; p_result: string }
+        Returns: Json
+      }
       reserve_shuttle_seats: {
         Args: {
           p_schedule_id: string
@@ -2405,10 +3048,29 @@ export type Database = {
         Returns: undefined
       }
       update_email_delivery_metrics: { Args: never; Returns: undefined }
+      update_wallet_balance: {
+        Args: { p_amount: number; p_transaction_id: string; p_user_id: string }
+        Returns: Json
+      }
+      verify_booking_price: {
+        Args: {
+          p_claimed_total: number
+          p_rayon_id: string
+          p_route_id: string
+          p_seat_count: number
+          p_service_type_id: string
+        }
+        Returns: {
+          calculated_total: number
+          difference: number
+          is_valid: boolean
+          provided_total: number
+        }[]
+      }
     }
     Enums: {
       ad_placement: "dashboard_banner" | "sidebar" | "popup" | "ride_completion"
-      app_role: "admin" | "moderator" | "user"
+      app_role: "admin" | "driver" | "user"
       booking_status: "confirmed" | "cancelled" | "completed"
       driver_status: "available" | "busy" | "offline"
       gender_type: "male" | "female"
