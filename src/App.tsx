@@ -16,7 +16,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import ResetPassword from "./pages/ResetPassword";
 
 // Lazy-loaded pages
-const Shuttle = lazy(() => import("./pages/Shuttle"));
+const Shuttle = lazy(() => import("./pages/ShuttleRefactored"));
 const Profile = lazy(() => import("./pages/Profile"));
 const Wallet = lazy(() => import("./pages/Wallet"));
 const Hotel = lazy(() => import("./pages/Hotel"));
@@ -100,7 +100,7 @@ const App = () => {
               <Route path="/driver/auth" element={<DriverAuth />} />
               <Route path="/forbidden" element={<Forbidden />} />
 
-              <Route element={<ProtectedRoute requiredRole="moderator" />}>
+              <Route element={<ProtectedRoute requiredRole="driver" />}>
                 <Route path="/driver" element={<DriverLayout />}>
                   <Route index element={<DriverDashboard />} />
                   <Route path="ride" element={<DriverActiveRide />} />
@@ -108,6 +108,14 @@ const App = () => {
                   <Route path="earnings" element={<DriverEarnings />} />
                   <Route path="wallet" element={<DriverWallet />} />
                   <Route path="history" element={<DriverHistory />} />
+                  <Route path="profile" element={<DriverProfile />} />
+                </Route>
+              </Route>
+
+              {/* Backward compatibility for moderator role */}
+              <Route element={<ProtectedRoute requiredRole="moderator" />}>
+                <Route path="/driver-legacy" element={<DriverLayout />}>
+                  <Route index element={<DriverDashboard />} />
                   <Route path="profile" element={<DriverProfile />} />
                 </Route>
               </Route>
