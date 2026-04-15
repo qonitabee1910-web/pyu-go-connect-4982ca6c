@@ -90,7 +90,7 @@ export function useAuth() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, sessionData) => {
       if (!mounted) return;
 
-      if (event === "SIGNED_OUT" || event === "TOKEN_REFRESHED_ERROR") {
+      if (event === "SIGNED_OUT") {
         setSession(null);
         setRole(null);
       } else if (sessionData) {

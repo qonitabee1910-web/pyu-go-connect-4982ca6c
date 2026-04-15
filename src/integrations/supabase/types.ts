@@ -1826,6 +1826,51 @@ export type Database = {
           },
         ]
       }
+      shuttle_distance_matrix: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          destination_point_id: string | null
+          distance_km: number
+          estimated_minutes: number | null
+          id: string
+          origin_point_id: string | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          destination_point_id?: string | null
+          distance_km: number
+          estimated_minutes?: number | null
+          id?: string
+          origin_point_id?: string | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          destination_point_id?: string | null
+          distance_km?: number
+          estimated_minutes?: number | null
+          id?: string
+          origin_point_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_distance_matrix_destination_point_id_fkey"
+            columns: ["destination_point_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_pickup_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_distance_matrix_origin_point_id_fkey"
+            columns: ["origin_point_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_pickup_points"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shuttle_pickup_points: {
         Row: {
           active: boolean
@@ -1925,6 +1970,47 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "shuttle_pricing_rules_service_type_id_fkey"
+            columns: ["service_type_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_service_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      shuttle_pricing_tiers: {
+        Row: {
+          active: boolean | null
+          created_at: string | null
+          discount_multiplier: number | null
+          id: string
+          max_seats: number | null
+          min_seats: number
+          service_type_id: string | null
+          surcharge_fixed: number | null
+        }
+        Insert: {
+          active?: boolean | null
+          created_at?: string | null
+          discount_multiplier?: number | null
+          id?: string
+          max_seats?: number | null
+          min_seats?: number
+          service_type_id?: string | null
+          surcharge_fixed?: number | null
+        }
+        Update: {
+          active?: boolean | null
+          created_at?: string | null
+          discount_multiplier?: number | null
+          id?: string
+          max_seats?: number | null
+          min_seats?: number
+          service_type_id?: string | null
+          surcharge_fixed?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shuttle_pricing_tiers_service_type_id_fkey"
             columns: ["service_type_id"]
             isOneToOne: false
             referencedRelation: "shuttle_service_types"
@@ -2909,27 +2995,44 @@ export type Database = {
         Args: { p_driver_id: string; p_schedule_id: string }
         Returns: boolean
       }
-      calculate_shuttle_booking_price: {
-        Args: {
-          p_destination_point_id?: string | null
-          p_pickup_point_id?: string | null
-          p_rayon_id?: string | null
-          p_route_id?: string | null
-          p_schedule_id?: string | null
-          p_seat_count?: number
-          p_service_type_id?: string | null
-          p_variation_id?: string | null
-        }
-        Returns: {
-          base_amount: number
-          distance_amount: number
-          peak_multiplier: number
-          rayon_surcharge: number
-          service_premium: number
-          tier_discount: number
-          total_amount: number
-        }[]
-      }
+      calculate_shuttle_booking_price:
+        | {
+            Args: {
+              p_destination_point_id?: string
+              p_pickup_point_id?: string
+              p_rayon_id?: string
+              p_route_id?: string
+              p_schedule_id?: string
+              p_seat_count?: number
+              p_service_type_id?: string
+              p_variation_id?: string
+            }
+            Returns: {
+              base_amount: number
+              distance_amount: number
+              peak_multiplier: number
+              rayon_surcharge: number
+              service_premium: number
+              tier_discount: number
+              total_amount: number
+            }[]
+          }
+        | {
+            Args: {
+              p_rayon_id: string
+              p_schedule_id: string
+              p_seat_count: number
+              p_service_type_id: string
+            }
+            Returns: {
+              base_amount: number
+              distance_amount: number
+              peak_multiplier: number
+              rayon_surcharge: number
+              service_premium: number
+              total_amount: number
+            }[]
+          }
       cleanup_expired_seat_reservations: { Args: never; Returns: undefined }
       create_shuttle_booking_atomic: {
         Args: {
@@ -2961,7 +3064,6 @@ export type Database = {
           p_seat_numbers: number[]
           p_service_type_id: string
           p_user_id: string
-          p_variation_id?: string | null
           p_vehicle_type: string
         }
         Returns: string
