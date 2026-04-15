@@ -39,6 +39,7 @@ const EmailTemplateEditor = lazy(() => import("./pages/admin/EmailTemplateEditor
 const EmailWebhookTracking = lazy(() => import("./pages/admin/EmailWebhookTracking"));
 const AdminHotels = lazy(() => import("./pages/admin/AdminHotels"));
 const AdminWithdrawals = lazy(() => import("./pages/admin/AdminWithdrawals"));
+const CarCanvasBuilder = lazy(() => import("./pages/admin/CarCanvasBuilder"));
 
 // Driver pages
 const DriverLayout = lazy(() => import("./pages/driver/DriverLayout"));
@@ -130,6 +131,7 @@ const App = () => {
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="payments" element={<AdminPayments />} />
                   <Route path="withdrawals" element={<AdminWithdrawals />} />
+                  <Route path="car-builder" element={<CarCanvasBuilder />} />
                   <Route path="email-settings" element={<EmailSettings />} />
                   <Route path="email-templates" element={<EmailTemplateEditor />} />
                   <Route path="email-webhook-tracking" element={<EmailWebhookTracking />} />
