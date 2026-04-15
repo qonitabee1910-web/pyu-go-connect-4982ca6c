@@ -1,9 +1,6 @@
 /**
  * Wallet Service - Financial Operations
  * PHASE 1 CRITICAL FIX #4: Uses atomic RPC function for race condition safety
- * 
- * Purpose: Handle all wallet balance operations safely and atomically
- * Security: All balance updates go through update_wallet_balance() RPC
  */
 
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +23,7 @@ export interface Transaction {
   type: 'debit' | 'credit' | 'balance_update';
   status: 'pending' | 'completed' | 'failed';
   description?: string;
-  relatedId?: string; // Booking ID, Withdrawal ID, etc.
+  relatedId?: string;
   createdAt: string;
 }
 
@@ -38,14 +35,7 @@ export interface WalletOperationResult {
   message?: string;
 }
 
-/**
- * Wallet Service - All operations use atomic RPC functions
- * CRITICAL: Never use direct UPDATE statements on wallet balance
- */
 export class WalletService {
-  /**
-   * Get current wallet balance for user
-   */
   static async getWallet(userId: string): Promise<Wallet | null> {
     try {
       const { data, error } = await supabase
@@ -62,9 +52,9 @@ export class WalletService {
       return {
         id: data.id,
         userId: data.user_id,
-        balance: parseFloat(data.balance),
-        totalEarnings: parseFloat(data.total_earnings || 0),
-        totalSpent: parseFloat(data.total_spent || 0),
+        balance: Number(data.balance),
+        totalEarnings: 0,
+        totalSpent: 0,
         createdAt: data.created_at,
         updatedAt: data.updated_at
       };
@@ -74,10 +64,6 @@ export class WalletService {
     }
   }
 
-  /**
-   * Deduct balance from wallet (e.g., for booking)
-   * ATOMIC: Uses database-level locking via RPC
-   */
   static async deductBalance(
     userId: string,
     amount: number,
@@ -89,16 +75,11 @@ export class WalletService {
         return { success: false, error: 'Amount must be greater than 0' };
       }
 
-      // Log the operation attempt
       await log_security_event(
-        'wallet_deduction',
-        'wallet',
-        'deduct_balance',
-        'processing',
+        'wallet_deduction', 'wallet', 'deduct_balance', 'processing',
         { user_id: userId, amount, description }
       );
 
-      // Call atomic RPC function
       const { data, error } = await supabase.rpc('update_wallet_balance', {
         p_user_id: userId,
         p_amount: -amount,
@@ -106,57 +87,35 @@ export class WalletService {
       });
 
       if (error) {
-        await log_security_event(
-          'wallet_deduction',
-          'wallet',
-          'deduct_balance',
-          'failed',
-          { user_id: userId, amount, error: error.message }
-        );
+        await log_security_event('wallet_deduction', 'wallet', 'deduct_balance', 'failed',
+          { user_id: userId, amount, error: error.message });
         return { success: false, error: error.message };
       }
 
-      if (data.error) {
-        await log_security_event(
-          'wallet_deduction',
-          'wallet',
-          'deduct_balance',
-          'failed',
-          { user_id: userId, amount, error: data.error }
-        );
-        return { success: false, error: data.error };
+      const result = data as any;
+
+      if (result?.error) {
+        await log_security_event('wallet_deduction', 'wallet', 'deduct_balance', 'failed',
+          { user_id: userId, amount, error: result.error });
+        return { success: false, error: result.error };
       }
 
-      await log_security_event(
-        'wallet_deduction',
-        'wallet',
-        'deduct_balance',
-        'success',
-        { user_id: userId, amount, new_balance: data.new_balance }
-      );
+      await log_security_event('wallet_deduction', 'wallet', 'deduct_balance', 'success',
+        { user_id: userId, amount, new_balance: result?.new_balance });
 
       return {
         success: true,
-        newBalance: parseFloat(data.new_balance),
-        transactionId: data.transaction_id,
+        newBalance: parseFloat(String(result?.new_balance)),
+        transactionId: String(result?.transaction_id),
         message: `Deducted ${amount} from wallet`
       };
     } catch (err: any) {
-      await log_security_event(
-        'wallet_deduction',
-        'wallet',
-        'deduct_balance',
-        'failed',
-        { user_id: userId, amount, error: err.message }
-      );
+      await log_security_event('wallet_deduction', 'wallet', 'deduct_balance', 'failed',
+        { user_id: userId, amount, error: err.message });
       return { success: false, error: err.message };
     }
   }
 
-  /**
-   * Add balance to wallet (e.g., for earnings or refunds)
-   * ATOMIC: Uses database-level locking via RPC
-   */
   static async addBalance(
     userId: string,
     amount: number,
@@ -168,15 +127,9 @@ export class WalletService {
         return { success: false, error: 'Amount must be greater than 0' };
       }
 
-      await log_security_event(
-        'wallet_addition',
-        'wallet',
-        'add_balance',
-        'processing',
-        { user_id: userId, amount, description }
-      );
+      await log_security_event('wallet_addition', 'wallet', 'add_balance', 'processing',
+        { user_id: userId, amount, description });
 
-      // Call atomic RPC function (amount is positive for additions)
       const { data, error } = await supabase.rpc('update_wallet_balance', {
         p_user_id: userId,
         p_amount: amount,
@@ -184,56 +137,35 @@ export class WalletService {
       });
 
       if (error) {
-        await log_security_event(
-          'wallet_addition',
-          'wallet',
-          'add_balance',
-          'failed',
-          { user_id: userId, amount, error: error.message }
-        );
+        await log_security_event('wallet_addition', 'wallet', 'add_balance', 'failed',
+          { user_id: userId, amount, error: error.message });
         return { success: false, error: error.message };
       }
 
-      if (data.error) {
-        await log_security_event(
-          'wallet_addition',
-          'wallet',
-          'add_balance',
-          'failed',
-          { user_id: userId, amount, error: data.error }
-        );
-        return { success: false, error: data.error };
+      const result = data as any;
+
+      if (result?.error) {
+        await log_security_event('wallet_addition', 'wallet', 'add_balance', 'failed',
+          { user_id: userId, amount, error: result.error });
+        return { success: false, error: result.error };
       }
 
-      await log_security_event(
-        'wallet_addition',
-        'wallet',
-        'add_balance',
-        'success',
-        { user_id: userId, amount, new_balance: data.new_balance }
-      );
+      await log_security_event('wallet_addition', 'wallet', 'add_balance', 'success',
+        { user_id: userId, amount, new_balance: result?.new_balance });
 
       return {
         success: true,
-        newBalance: parseFloat(data.new_balance),
-        transactionId: data.transaction_id,
+        newBalance: parseFloat(String(result?.new_balance)),
+        transactionId: String(result?.transaction_id),
         message: `Added ${amount} to wallet`
       };
     } catch (err: any) {
-      await log_security_event(
-        'wallet_addition',
-        'wallet',
-        'add_balance',
-        'failed',
-        { user_id: userId, amount, error: err.message }
-      );
+      await log_security_event('wallet_addition', 'wallet', 'add_balance', 'failed',
+        { user_id: userId, amount, error: err.message });
       return { success: false, error: err.message };
     }
   }
 
-  /**
-   * Get transaction history
-   */
   static async getTransactionHistory(
     userId: string,
     limit: number = 50,
@@ -241,9 +173,9 @@ export class WalletService {
   ): Promise<Transaction[]> {
     try {
       const { data, error } = await supabase
-        .from('transactions')
+        .from('wallet_transactions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('wallet_id', userId)
         .order('created_at', { ascending: false })
         .range(offset, offset + limit - 1);
 
@@ -254,12 +186,12 @@ export class WalletService {
 
       return (data || []).map((t: any) => ({
         id: t.id,
-        userId: t.user_id,
+        userId: t.wallet_id,
         amount: parseFloat(t.amount),
         type: t.type,
         status: t.status,
         description: t.description,
-        relatedId: t.related_id,
+        relatedId: t.reference_id,
         createdAt: t.created_at
       }));
     } catch (err) {
@@ -268,9 +200,6 @@ export class WalletService {
     }
   }
 
-  /**
-   * Check if user has sufficient balance
-   */
   static async hasSufficientBalance(userId: string, amount: number): Promise<boolean> {
     try {
       const wallet = await this.getWallet(userId);
@@ -282,22 +211,11 @@ export class WalletService {
     }
   }
 
-  /**
-   * Get wallet summary (earnings, spent, balance)
-   */
   static async getWalletSummary(userId: string): Promise<any> {
     try {
       const { data, error } = await supabase
         .from('wallets')
-        .select(
-          `
-          id,
-          balance,
-          total_earnings,
-          total_spent,
-          updated_at
-        `
-        )
+        .select('id, balance, updated_at')
         .eq('user_id', userId)
         .single();
 
@@ -307,9 +225,9 @@ export class WalletService {
       }
 
       return {
-        balance: parseFloat(data.balance),
-        earnings: parseFloat(data.total_earnings),
-        spent: parseFloat(data.total_spent),
+        balance: Number(data.balance),
+        earnings: 0,
+        spent: 0,
         lastUpdated: data.updated_at
       };
     } catch (err) {

@@ -322,8 +322,8 @@ class SessionManagementService {
         event,
         ip_address: ipAddress,
         user_agent: navigator.userAgent,
-        device_info: JSON.parse(JSON.stringify(deviceInfo)) as Record<string, unknown>,
-        details: (details || {}) as Record<string, unknown>,
+        device_info: JSON.parse(JSON.stringify(deviceInfo)),
+        details: details ? JSON.parse(JSON.stringify(details)) : {},
       };
       
       const { error } = await supabase

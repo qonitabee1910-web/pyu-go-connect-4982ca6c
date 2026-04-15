@@ -623,15 +623,20 @@ export default function Shuttle() {
               />
             )}
 
-            {step === "guest_info" && (
+            {step === "guest_info" && selectedSeats.length > 0 && (
               <GuestInfoForm 
-                guestName={guestName}
-                guestPhone={guestPhone}
-                setGuestName={setGuestName}
-                setGuestPhone={setGuestPhone}
-                onNext={handleGuestInfoNext}
-                onBack={goBack}
+                seatNumber={selectedSeats[0]}
+                onSave={(name, phone) => {
+                  setGuestName(name);
+                  setGuestPhone(phone);
+                }}
               />
+            )}
+            {step === "guest_info" && (
+              <div className="flex gap-2 mt-4">
+                <Button variant="outline" onClick={goBack} className="flex-1">Kembali</Button>
+                <Button onClick={handleGuestInfoNext} className="flex-1">Lanjut</Button>
+              </div>
             )}
 
             {step === "payment" && (
