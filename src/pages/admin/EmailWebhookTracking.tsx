@@ -115,8 +115,8 @@ export default function EmailWebhookTracking() {
   const [metrics, setMetrics] = useState<Metrics[]>([]);
   const [webhookConfigs, setWebhookConfigs] = useState<WebhookConfig[]>([]);
   const [loading, setLoading] = useState(true);
-  const [eventFilter, setEventFilter] = useState<string>("");
-  const [providerFilter, setProviderFilter] = useState<string>("");
+  const [eventFilter, setEventFilter] = useState<string>("all");
+  const [providerFilter, setProviderFilter] = useState<string>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedBlacklistId, setSelectedBlacklistId] = useState<string>("");
   const [selectedEmail, setSelectedEmail] = useState<string>("");
@@ -133,10 +133,10 @@ export default function EmailWebhookTracking() {
         .order("created_at", { ascending: false })
         .limit(100);
 
-      if (eventFilter) {
+      if (eventFilter && eventFilter !== "all") {
         query = query.eq("event_type", eventFilter);
       }
-      if (providerFilter) {
+      if (providerFilter && providerFilter !== "all") {
         query = query.eq("provider", providerFilter);
       }
 
@@ -427,7 +427,7 @@ export default function EmailWebhookTracking() {
                         <SelectValue placeholder="Semua event" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Semua event</SelectItem>
+                        <SelectItem value="all">Semua event</SelectItem>
                         <SelectItem value="sent">Sent</SelectItem>
                         <SelectItem value="delivered">Delivered</SelectItem>
                         <SelectItem value="bounced">Bounced</SelectItem>
@@ -446,7 +446,7 @@ export default function EmailWebhookTracking() {
                         <SelectValue placeholder="Semua provider" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">Semua provider</SelectItem>
+                        <SelectItem value="all">Semua provider</SelectItem>
                         <SelectItem value="resend">Resend</SelectItem>
                         <SelectItem value="sendgrid">SendGrid</SelectItem>
                       </SelectContent>
