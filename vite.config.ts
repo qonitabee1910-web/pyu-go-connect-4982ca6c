@@ -1,6 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react-swc";
 import path from "path";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig(({ mode }) => ({
   server: {
@@ -14,7 +15,56 @@ export default defineConfig(({ mode }) => ({
       strict: false,
     },
   },
-  plugins: [react()].filter(Boolean),
+  plugins: [
+    react(),
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'pyu_go_icon.png', 'logo_pyu.png'],
+      manifest: {
+        name: 'PYU GO — Rides & Shuttle',
+        short_name: 'PYU GO',
+        description: 'Your super app for on-demand rides and shuttle booking',
+        theme_color: '#1a9e5c',
+        icons: [
+          {
+            src: 'pyu_go_icon.png',
+            sizes: '192x192',
+            type: 'image/png'
+          },
+          {
+            src: 'pyu_go_icon.png',
+            sizes: '512x512',
+            type: 'image/png'
+          },
+          {
+            src: 'pyu_go_icon.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'any maskable'
+          }
+        ]
+      },
+      workbox: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          }
+        ]
+      }
+    })
+  ].filter(Boolean),
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
