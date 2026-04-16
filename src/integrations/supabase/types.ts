@@ -2226,6 +2226,7 @@ export type Database = {
           departure_time: string
           driver_id: string | null
           id: string
+          layout_id: string | null
           route_id: string
           service_id: string | null
           service_type_id: string | null
@@ -2244,6 +2245,7 @@ export type Database = {
           departure_time: string
           driver_id?: string | null
           id?: string
+          layout_id?: string | null
           route_id: string
           service_id?: string | null
           service_type_id?: string | null
@@ -2262,6 +2264,7 @@ export type Database = {
           departure_time?: string
           driver_id?: string | null
           id?: string
+          layout_id?: string | null
           route_id?: string
           service_id?: string | null
           service_type_id?: string | null
@@ -2277,6 +2280,13 @@ export type Database = {
             columns: ["driver_id"]
             isOneToOne: false
             referencedRelation: "drivers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "shuttle_schedules_layout_id_fkey"
+            columns: ["layout_id"]
+            isOneToOne: false
+            referencedRelation: "shuttle_vehicle_layouts"
             referencedColumns: ["id"]
           },
           {
@@ -2453,6 +2463,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      shuttle_vehicle_layouts: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          dimensions: Json
+          id: string
+          is_active: boolean | null
+          layout_data: Json
+          name: string
+          updated_at: string | null
+          vehicle_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          dimensions?: Json
+          id?: string
+          is_active?: boolean | null
+          layout_data?: Json
+          name: string
+          updated_at?: string | null
+          vehicle_type: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          dimensions?: Json
+          id?: string
+          is_active?: boolean | null
+          layout_data?: Json
+          name?: string
+          updated_at?: string | null
+          vehicle_type?: string
+        }
+        Relationships: []
       }
       user_experiment_assignments: {
         Row: {
