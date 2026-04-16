@@ -1,71 +1,56 @@
 
 
-# Review & Refinement: Auth Flow
+# Plan: Fix Build Errors + Traveloka-Style Landing Page
 
-## Issues Found
+## Part 1: Fix Build Errors
 
-### 1. Password Reset Flow is Broken
-`ForgotPassword.tsx` uses `redirectTo: .../forgot-password?code=` but Supabase recovery flow uses URL hash fragments (`#access_token=...&type=recovery`), not query params. The page never detects the recovery session, so `updateUser` fails because there's no active session.
+### ShuttleLayoutService.ts
+The `shuttle_vehicle_layouts` table doesn't exist in the database types. All Supabase calls need to use `(supabase as any).from("shuttle_vehicle_layouts")` casting, or we create the table via migration.
 
-**Fix**: Use a dedicated `/reset-password` route. After clicking the email link, Supabase sets the session automatically via hash. The reset page should detect `type=recovery` from the hash and show the new password form.
-
-### 2. Verify Code Step in ForgotPassword is Fake
-`handleVerifyCode` (line 65-83) doesn't actually verify anything — it just sets the code as a token and moves to the next step. This is misleading.
-
-**Fix**: Remove the manual code verification step. Supabase recovery uses link-based flow — the user clicks the link, gets redirected with a session, and can then update their password.
-
-### 3. Driver Login Redirects Before Role is Loaded
-In `DriverAuth.tsx` line 97, after successful `signIn`, it immediately calls `navigate("/driver")`. But the role hasn't been fetched yet, so `ProtectedRoute` may redirect to `/forbidden` briefly.
-
-**Fix**: Remove the manual `navigate("/driver")` on line 97. The `useEffect` on line 24-36 already handles redirect once `role === "moderator"` is set.
-
-### 4. User Auth Page — No Role-Based Redirect for Drivers
-If a driver logs in on the user auth page (`/auth`), the redirect logic (line 29-33) only checks for `admin`. A driver logging in here would be sent to `/` instead of `/driver`.
-
-**Fix**: Add `moderator` check to redirect drivers to `/driver`.
-
-### 5. App Layout Routes Not Protected
-Routes like `/wallet`, `/profile`, `/ride` are inside `AppLayout` but not behind `ProtectedRoute`. Any unauthenticated user can access them (they'll just see empty data or errors).
-
-**Fix**: Wrap authenticated-only routes (`/wallet`, `/profile`) with `ProtectedRoute`. Keep `/ride`, `/shuttle`, `/hotel` accessible (they handle guest state internally).
-
-### 6. No `/reset-password` Route Exists
-The app has no dedicated reset-password page, which is required for proper Supabase password recovery flow.
-
-**Fix**: Create `/reset-password` route that handles the recovery session from URL hash.
+**Approach**: Cast all supabase calls in ShuttleLayoutService to bypass type checking, since the table may exist at runtime but isn't in the generated types yet. This is the same pattern used for WalletService and ShuttleBookingService.
 
 ---
 
-## Changes
+## Part 2: Traveloka-Style Landing Page Redesign
 
-### 1. Create `src/pages/ResetPassword.tsx`
-- New page that detects `type=recovery` from URL hash
-- Shows new password + confirm password form
-- Calls `supabase.auth.updateUser({ password })` (session is already active from the recovery link)
-- Redirects to `/auth` on success
+Transform the current simple Index page into a polished, Traveloka-inspired landing page with these sections:
 
-### 2. Update `src/pages/ForgotPassword.tsx`
-- Simplify to email-only step — remove the broken verify/reset steps
-- Update `redirectTo` to `window.location.origin + '/reset-password'`
-- Show success message after email is sent
+### 1. Hero Section with Search
+- Full-width gradient hero with PYU GO branding
+- Prominent "Where are you going?" search bar
+- Wallet balance pill (logged in) or Sign In button
 
-### 3. Update `src/pages/Auth.tsx`
-- Add `moderator` role check in redirect `useEffect` → navigate to `/driver`
+### 2. Service Tabs (Traveloka-style)
+- Horizontal icon tabs: **Ride** | **Shuttle** | **Hotel**
+- Each tab shows a mini-form relevant to the service (destination input for Ride, route selector for Shuttle, city for Hotel)
+- Rounded card container with shadow
 
-### 4. Update `src/pages/driver/DriverAuth.tsx`
-- Remove `navigate("/driver")` on line 97 (duplicate of useEffect redirect)
+### 3. Promo/Deals Carousel
+- Keep existing PromoSection but style it with Traveloka's card design (image + overlay text + discount badge)
 
-### 5. Update `src/App.tsx`
-- Add `/reset-password` route
-- Wrap `/wallet` and `/profile` routes with `ProtectedRoute`
+### 4. Quick Access Grid
+- "Popular Destinations" or "Popular Routes" section
+- Grid of cards with images and labels
 
-No database changes required.
+### 5. Ads Banner
+- Keep existing AdsBanner component
 
-| File | Change |
-|------|--------|
-| `src/pages/ResetPassword.tsx` | New — proper password reset page |
-| `src/pages/ForgotPassword.tsx` | Simplify to email-only, fix redirectTo |
-| `src/pages/Auth.tsx` | Add driver role redirect |
-| `src/pages/driver/DriverAuth.tsx` | Remove duplicate navigate |
-| `src/App.tsx` | Add reset-password route, protect wallet/profile |
+### 6. Recent Activity
+- Keep existing recent rides section with cleaner card design
+
+### 7. Trust/Info Bar
+- Simple footer-like section: "Safe Rides", "Best Prices", "24/7 Support" with icons
+
+### Files to modify:
+- `src/pages/Index.tsx` — Complete rewrite with Traveloka layout
+- `src/services/ShuttleLayoutService.ts` — Fix type casting
+- New: `src/components/home/ServiceTabs.tsx` — Tab-based service selector
+- New: `src/components/home/TrustBanner.tsx` — Trust indicators section
+- New: `src/components/home/PopularRoutes.tsx` — Popular destinations grid
+
+### Design principles:
+- White/light background with green-blue brand gradient on hero
+- Rounded cards with subtle shadows (Traveloka style)
+- Clean iconography, Plus Jakarta Sans throughout
+- Mobile-first with bottom nav preserved
 
